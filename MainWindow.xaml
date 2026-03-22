@@ -1,0 +1,299 @@
+﻿<Window x:Class="DmPayQuery.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DmPayQuery"
+        xmlns:models="clr-namespace:DmPayQuery.Models"
+        xmlns:converters="clr-namespace:DmPayQuery.Converters"
+        mc:Ignorable="d"
+        Title="哆咪消费一键查询工具 v3.2.0"
+        Icon="pack://application:,,,/DmPayQuery;component/myicon.ico"
+        SizeToContent="WidthAndHeight"
+        MaxWidth="1200" MaxHeight="900"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanMinimize"
+        FontFamily="Microsoft YaHei">
+
+    <Window.Resources>
+        <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
+        <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+        <converters:StringToColorConverter x:Key="StringToColorConverter"/>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <DropShadowEffect x:Key="CardShadow" 
+                         ShadowDepth="2" 
+                         BlurRadius="8" 
+                         Opacity="0.2"
+                         Color="Gray"/>
+    </Window.Resources>
+
+    <Grid Margin="20" Background="White">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 标题卡片 -->
+        <Border Background="#fafafa" 
+                CornerRadius="8" 
+                Padding="15"
+                Margin="0,0,0,15"
+                Effect="{StaticResource CardShadow}">
+            <StackPanel>
+                <TextBlock Text="哆咪消费一键查询工具" 
+                          FontSize="20" 
+                          FontWeight="Bold"
+                          HorizontalAlignment="Center"
+                          Foreground="#1E88E5"/>
+                <TextBlock Text="支持批量id | uid查充值 | 送礼 | 用户信息 | 生成Excel" 
+                          FontSize="14"
+                          HorizontalAlignment="Center"
+                          Foreground="#666"
+                          Margin="0,8,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 配置卡片 -->
+        <Border Grid.Row="1"
+                Background="#fafafa"
+                CornerRadius="8" 
+                Padding="25"
+                Margin="0,0,0,15"
+                Effect="{StaticResource CardShadow}">
+            <StackPanel>
+                <TextBlock Text="⚙ 查询配置"
+                          FontSize="18"
+                          FontWeight="Bold"
+                          Foreground="#333"
+                          Margin="0,0,0,15"/>
+
+                <Separator Margin="0,0,0,20" Background="#E0E0E0"/>
+
+                <!-- 查询模式 -->
+                <StackPanel Orientation="Horizontal" Margin="0,5">
+                    <TextBlock Text="查询模式：" Width="100" VerticalAlignment="Center" FontWeight="Bold" Foreground="#555" FontSize="15"/>
+                    <RadioButton Content="ID查充值/送礼" 
+                                IsChecked="{Binding QueryMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:QueryMode.IdRechargeOrGift}}"
+                                Margin="0,0,20,0"
+                                VerticalContentAlignment="Center" FontSize="15"/>
+                    <RadioButton Content="ID只查送礼" 
+                                IsChecked="{Binding QueryMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:QueryMode.IdGiftOnly}}"
+                                Margin="0,0,20,0"
+                                VerticalContentAlignment="Center" FontSize="15"/>
+                    <RadioButton Content="UID查充值/送礼" 
+                                IsChecked="{Binding QueryMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:QueryMode.UidRechargeOrGift}}"
+                                VerticalContentAlignment="Center" FontSize="15"/>
+                </StackPanel>
+
+                <!-- 日期模式 -->
+                <StackPanel Orientation="Horizontal" Margin="0,15">
+                    <TextBlock Text="开始日期：" Width="100" VerticalAlignment="Center" FontWeight="Bold" Foreground="#555" FontSize="15"/>
+                    <RadioButton Content="不调整默认" 
+                                IsChecked="{Binding DateMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:DateMode.Original}}"
+                                Margin="0,0,25,0"
+                                VerticalContentAlignment="Center" FontSize="15"/>
+                    <RadioButton Content="拍走日期前1天（防止0点填错）" 
+                                IsChecked="{Binding DateMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:DateMode.PreviousDay}}"
+                                VerticalContentAlignment="Center" FontSize="15"/>
+                </StackPanel>
+
+                <!-- 文件选择 -->
+                <StackPanel Orientation="Horizontal" Margin="0,10">
+                    <TextBlock Text="Excel文件：" Width="100" VerticalAlignment="Center" FontWeight="Bold" Foreground="#555" FontSize="15"/>
+                    <Button Content="选择文件" 
+                           Command="{Binding SelectFileCommand}"
+                           Width="100"
+                           Height="36"
+                           Background="White"
+                           BorderBrush="#1E88E5"
+                           BorderThickness="1"
+                           Foreground="#1E88E5"
+                           FontWeight="SemiBold"/>
+                    <Grid Margin="12,0,0,0">
+                        <TextBox x:Name="FilePathTextBox" Text="{Binding FilePath}" 
+                                 IsReadOnly="True"
+                                 Width="320"
+                                 Height="36"
+                                 VerticalContentAlignment="Center"
+                                 Padding="10,0"
+                                 BorderBrush="#DDD"
+                                 BorderThickness="1"
+                                 Background="#FAFAFA"/>
+                        <TextBlock Text="请选择待查询的Excel表文件" VerticalAlignment="Center" Foreground="#999" Margin="16,0,0,0" IsHitTestVisible="False" Opacity="0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Opacity" Value="0" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=FilePathTextBox}" Value="">
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.15" />
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                            <DataTrigger.ExitActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.12" />
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.ExitActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </StackPanel>
+
+                <!-- 操作按钮 -->
+                <StackPanel Orientation="Horizontal" 
+                           HorizontalAlignment="Center" 
+                           Margin="0,25,0,0">
+                    <Button Content="🚀 一键查询" 
+                           Command="{Binding StartQueryCommand}"
+                           IsEnabled="{Binding IsQuerying, Converter={StaticResource InverseBooleanConverter}}"
+                           Width="140"
+                           Height="45"
+                           Background="#1E88E5"
+                           Foreground="White"
+                           FontSize="15"
+                           FontWeight="Bold"
+                           BorderThickness="0"
+                           Margin="0,0,20,0"
+                           Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <!-- 悬停 -->
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#2196f3"/>
+                                                </Trigger>
+                                                <!-- 点击 -->
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#1E88E5"/>
+                                                </Trigger>
+                                                <!-- 禁用 -->
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Opacity" Value="0.6"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Content="🗑️ 清空日志" 
+                           Command="{Binding ClearLogsCommand}"
+                           Width="140"
+                           Height="45"
+                           Background="#fafafa"
+                           BorderBrush="#1E88E5"
+                           BorderThickness="2"
+                           Foreground="#1E88E5"
+                           FontSize="15"
+                           FontWeight="Bold"
+                           Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                                                <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <!-- 悬停 -->
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                </Trigger>
+                                                <!-- 点击 -->
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                </Trigger>
+                                                <!-- 禁用 -->
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Opacity" Value="0.6"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+
+                <!-- 进度条 -->
+                <ProgressBar Value="{Binding ProgressValue}" 
+                            Maximum="100"
+                            Visibility="{Binding ProgressVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Height="10"
+                            Margin="0,20,0,0"
+                            Foreground="#26A69A"
+                            Background="#E0E0E0"
+                            BorderThickness="0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 日志卡片 -->
+        <Border Grid.Row="2" 
+                Background="White" 
+                CornerRadius="8" 
+                Padding="20"
+                Effect="{StaticResource CardShadow}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="📋 运行日志" 
+                          FontSize="18" 
+                          FontWeight="Bold"
+                          Foreground="#333"
+                          Margin="0,0,0,10"/>
+
+                <Border Grid.Row="1" 
+                        Background="#FAFAFA" 
+                        CornerRadius="6"
+                        BorderBrush="#E0E0E0"
+                        BorderThickness="1">
+                    <ScrollViewer x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto" 
+                                 HorizontalScrollBarVisibility="Disabled"
+                                 Padding="10"
+                                 Height="150">
+                        <ItemsControl ItemsSource="{Binding Logs}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Message}" 
+                                              Foreground="{Binding Color, Converter={StaticResource StringToColorConverter}}"
+                                              FontSize="13"
+                                              TextWrapping="Wrap"
+                                              Margin="0,3"
+                                              FontFamily="Consolas"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
