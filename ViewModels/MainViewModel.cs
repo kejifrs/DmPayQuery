@@ -11,42 +11,31 @@ using DmPayQuery.Views;
 
 namespace DmPayQuery.ViewModels;
 
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel(IApiService apiService, ICacheService cacheService, IExcelService excelService) : ObservableObject
 {
-    private readonly IApiService _apiService;
-    private readonly ICacheService _cacheService;
-    private readonly IExcelService _excelService;
+    [ObservableProperty]
+    public partial string FilePath { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string _filePath = string.Empty;
+    public partial QueryMode QueryMode { get; set; } = QueryMode.IdRechargeOrGift;
 
     [ObservableProperty]
-    private QueryMode _queryMode = QueryMode.IdRechargeOrGift;
+    public partial DateMode DateMode { get; set; } = DateMode.Original;
 
     [ObservableProperty]
-    private DateMode _dateMode = DateMode.Original;
+    public partial ObservableCollection<LogEntry> Logs { get; set; } = new();
 
     [ObservableProperty]
-    private ObservableCollection<LogEntry> _logs = new();
+    public partial bool IsQuerying { get; set; }
 
     [ObservableProperty]
-    private bool _isQuerying;
+    public partial double ProgressValue { get; set; }
 
     [ObservableProperty]
-    private double _progressValue;
-
-    [ObservableProperty]
-    private bool _progressVisible;
+    public partial bool ProgressVisible { get; set; }
 
     private string? _currentToken;
     private DataTable? _currentDataTable;
-
-    public MainViewModel(IApiService apiService, ICacheService cacheService, IExcelService excelService)
-    {
-        _apiService = apiService;
-        _cacheService = cacheService;
-        _excelService = excelService;
-    }
 
     [RelayCommand]
     private void SelectFile()
@@ -77,7 +66,7 @@ public partial class MainViewModel : ObservableObject
             Path.GetDirectoryName(FilePath) ?? AppDomain.CurrentDomain.BaseDirectory,
             "查询结果.xlsx");
 
-        if (!await _excelService.CheckFileWritableAsync(outputPath))
+        if (!await excelService.CheckFileWritableAsync(outputPath))
         {
             AddLog("❌ 输出文件被占用，请关闭“查询结果.xlsx”后重试", "Red");
             return;
@@ -101,7 +90,7 @@ public partial class MainViewModel : ObservableObject
 
             // 2. 读取 Excel
             AddLog("🔧 开始前置检查...", "Cyan");
-            _currentDataTable = await _excelService.ReadExcelAsync(FilePath);
+            _currentDataTable = await excelService.ReadExcelAsync(FilePath);
 
             if (_currentDataTable == null)
             {
@@ -174,7 +163,7 @@ public partial class MainViewModel : ObservableObject
             // 6. 保存结果（统计之后）
             try
             {
-                await _excelService.SaveExcelAsync(_currentDataTable, outputPath);
+                await excelService.SaveExcelAsync(_currentDataTable, outputPath);
                 AddLog($"📁 结果已保存：{outputPath}", "Blue");
 
                 // 7. 自动打开（最后）
@@ -216,7 +205,7 @@ public partial class MainViewModel : ObservableObject
 
     private async Task<string?> LoginWithCacheAsync()
     {
-        var cache = await _cacheService.GetCacheAsync();
+        var cache = await cacheService.GetCacheAsync();
 
         if (cache != null)
         {
@@ -227,13 +216,13 @@ public partial class MainViewModel : ObservableObject
             AddLog($"🟢 检测到有效缓存【账号：{cache.Account} | 登录时间：{loginTime} | 剩余：{remaining / 60}分{remaining % 60}秒】", "Green");
             AddLog("🔍 验证缓存有效性...", "Cyan");
 
-            if (await _apiService.CheckTokenValidityAsync(cache.Token))
+            if (await apiService.CheckTokenValidityAsync(cache.Token))
             {
                 return cache.Token;
             }
 
             AddLog("⚠️ Token已过期，重新登录...", "Orange");
-            await _cacheService.ClearCacheAsync();
+            await cacheService.ClearCacheAsync();
         }
         else
         {
@@ -241,7 +230,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         // 显示登录对话框
-        var loginDialog = new LoginDialog(_apiService);
+        var loginDialog = new LoginDialog(apiService);
         // center over main window
         if (Application.Current?.MainWindow != null)
             loginDialog.Owner = Application.Current.MainWindow;
@@ -251,7 +240,7 @@ public partial class MainViewModel : ObservableObject
             var token = loginDialog.ViewModel.Token;
             var account = loginDialog.ViewModel.Account;
 
-            await _cacheService.SaveCacheAsync(new LoginCache
+            await cacheService.SaveCacheAsync(new LoginCache
             {
                 Token = token,
                 Account = account
@@ -303,7 +292,7 @@ public partial class MainViewModel : ObservableObject
 
         // 查询金额
         var modeOnlyGift = QueryMode == QueryMode.IdGiftOnly;
-        var (amount, bizType, error) = await _apiService.GetRechargeAmountAsync(
+        var (amount, bizType, error) = await apiService.GetRechargeAmountAsync(
             userValue, _currentToken!, startDate, endDate,
             QueryMode == QueryMode.UidRechargeOrGift,
             modeOnlyGift);
@@ -315,7 +304,7 @@ public partial class MainViewModel : ObservableObject
         // 如果不是UID模式，查询用户信息
         if (QueryMode != QueryMode.UidRechargeOrGift)
         {
-            var (uid, registerDate, userError) = await _apiService.GetUserInfoAsync(userValue, _currentToken!);
+            var (uid, registerDate, userError) = await apiService.GetUserInfoAsync(userValue, _currentToken!);
             row["消费UID"] = uid;
             row["注册日期"] = registerDate;
         }

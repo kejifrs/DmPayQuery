@@ -1,7 +1,4 @@
-﻿using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -9,12 +6,10 @@ using DmPayQuery.Services;
 
 namespace DmPayQuery.ViewModels;
 
-public partial class LoginDialogViewModel : ObservableObject
+public partial class LoginDialogViewModel(IApiService apiService) : ObservableObject
 {
-    private readonly IApiService _apiService;
-
     [ObservableProperty]
-    private string _account = string.Empty;
+    public partial string Account { get; set; } = string.Empty;
 
     // Password 需要手动实现，因为 PasswordBox 不支持绑定
     private string _password = string.Empty;
@@ -29,23 +24,18 @@ public partial class LoginDialogViewModel : ObservableObject
     }
 
     [ObservableProperty]
-    private string _code = string.Empty;
+    public partial string Code { get; set; } = string.Empty;
 
     [ObservableProperty]
-    private string _countdownText = "获取验证码";
+    public partial string CountdownText { get; set; } = "获取验证码";
 
     [ObservableProperty]
-    private bool _canGetCode = true;
+    public partial bool CanGetCode { get; set; } = true;
 
     [ObservableProperty]
-    private bool _isLoggedIn;
+    public partial bool IsLoggedIn { get; set; }
 
     public string Token { get; private set; } = string.Empty;
-
-    public LoginDialogViewModel(IApiService apiService)
-    {
-        _apiService = apiService;
-    }
 
     [RelayCommand]
     private async Task GetCodeAsync()
@@ -56,7 +46,7 @@ public partial class LoginDialogViewModel : ObservableObject
             return;
         }
 
-        var (success, message) = await _apiService.GetVerificationCodeAsync(Account, Password);
+        var (success, message) = await apiService.GetVerificationCodeAsync(Account, Password);
 
         if (!success)
         {
@@ -97,7 +87,7 @@ public partial class LoginDialogViewModel : ObservableObject
             return;
         }
 
-        var (success, token, message) = await _apiService.LoginAsync(Account, Password, Code);
+        var (success, token, message) = await apiService.LoginAsync(Account, Password, Code);
 
         if (success)
         {
