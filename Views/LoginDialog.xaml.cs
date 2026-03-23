@@ -60,23 +60,43 @@ public partial class LoginDialog : Window
     {
         base.OnSourceInitialized(e);
 
-        // Remove the close button from the window chrome since we have a Cancel button
-        const int GWL_STYLE = -16;
-        const int WS_SYSMENU = 0x00080000;
-
-        var hwnd = new WindowInteropHelper(this).Handle;
-
-        if (IntPtr.Size == 8)
+        // Try to remove the close button from the window chrome since we have a Cancel button.
+        // Wrap in try/catch to avoid crashing on platforms where the native APIs are unavailable
+        // (some publishing scenarios or platform differences may cause DllNotFoundException).
+        try
         {
-            var style = GetWindowLongPtr(hwnd, GWL_STYLE).ToInt64();
-            style &= ~WS_SYSMENU;
-            SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(style));
+            const int GWL_STYLE = -16;
+            const int WS_SYSMENU = 0x00080000;
+
+            var hwnd = new WindowInteropHelper(this).Handle;
+
+            if (hwnd == IntPtr.Zero)
+                return;
+
+            if (IntPtr.Size == 8)
+            {
+                var style = GetWindowLongPtr(hwnd, GWL_STYLE).ToInt64();
+                style &= ~WS_SYSMENU;
+                SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(style));
+            }
+            else
+            {
+                int style = GetWindowLong(hwnd, GWL_STYLE);
+                style &= ~WS_SYSMENU;
+                SetWindowLong(hwnd, GWL_STYLE, style);
+            }
         }
-        else
+        catch (DllNotFoundException)
         {
-            int style = GetWindowLong(hwnd, GWL_STYLE);
-            style &= ~WS_SYSMENU;
-            SetWindowLong(hwnd, GWL_STYLE, style);
+            // Native user32 APIs not available in this environment — silently ignore to keep app runnable.
+        }
+        catch (EntryPointNotFoundException)
+        {
+            // API entry point missing on this platform — ignore.
+        }
+        catch (Exception)
+        {
+            // Any other error when attempting to modify window styles should not prevent the app from running.
         }
     }
 

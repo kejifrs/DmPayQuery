@@ -9,25 +9,25 @@
     <ApplicationIcon>myicon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Company> </Company>
+    <AssemblyName>DmPayQuery</AssemblyName>
+    <Company>DM</Company>
     <Product>哆咪消费一键查询工具</Product>
+    <Description>哆咪消费一键查询工具 - 支持批量查充值/送礼/用户信息</Description>
+    <Authors>哆咪</Authors>
+    <Copyright>Copyright © 2026 笑笑</Copyright>
     <AssemblyVersion>3.2.0.0</AssemblyVersion>
     <FileVersion>3.2.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Embed the icon into the assembly so it is available as a WPF resource -->
+    <!-- 将图标嵌入程序集，使其可作为 WPF 资源使用 -->
     <Resource Include="myicon.ico" />
     <None Include="version.rc">
       <SubType>Code</SubType>
     </None>
   </ItemGroup>
 
-  <!-- Allow the SDK to include XAML files as Page so the XAML compiler
-       generates the partial classes and InitializeComponent. Previously
-       MainWindow.xaml was treated as a Resource which prevented the
-       generated code and named element fields (like LogScrollViewer)
-       from being produced. -->
+  <!-- NuGet 包引用 -->
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.1" />
     <PackageReference Include="EPPlus" Version="8.5.0" />
