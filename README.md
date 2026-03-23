@@ -13,3 +13,7 @@
 注意事项：
  - 发布为框架依赖模式（`SelfContained=false`），用户需在目标机器上安装对应的 Windows Desktop 运行时。
  - 默认启用裁剪（Trimming）以减小文件体积；裁剪可能会移除运行时所需的代码，请充分测试后再发布。
+
+## 软件界面
+
+![软件界面截图](screenshot.png)
