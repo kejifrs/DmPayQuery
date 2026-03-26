@@ -73,7 +73,7 @@
                         <StackPanel Margin="0,14,0,0">
 
                             <!-- 提示文字 -->
-                            <TextBlock Text="📋 查询表需包含[拍走时间]和[消费ID]或[消费UID]列"
+                            <TextBlock Text="📋 查询表需包含 [拍走时间] 和 [消费ID] 或 [消费UID]列"
                                        FontSize="12" Foreground="#888" Margin="0,0,0,10"/>
 
                             <!-- 查询模式 -->
@@ -129,7 +129,7 @@
                         <StackPanel Margin="0,14,0,0">
 
                             <!-- 提示文字 -->
-                            <TextBlock Text="📋 查询表需包含[厅ID]或[主播ID]列"
+                            <TextBlock Text="📋 查询表需包含 [厅ID] 或 [主播ID]列"
                                        FontSize="12" Foreground="#888" Margin="0,0,0,10"/>
 
                             <!-- 查询模式 -->
