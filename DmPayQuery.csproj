@@ -29,6 +29,7 @@
   <ItemGroup>
     <!-- 将图标嵌入程序集，使其可作为 WPF 资源使用 -->
     <Resource Include="myicon.ico" />
+    <None Include=".github\copilot-instructions.md" />
     <None Include="version.rc">
       <SubType>Code</SubType>
     </None>

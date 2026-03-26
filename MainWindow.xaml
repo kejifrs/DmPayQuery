@@ -31,13 +31,54 @@
         <Style x:Key="TabItemStyle" TargetType="TabItem">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="Foreground" Value="#555"/>
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Foreground" Value="#1E88E5"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Padding" Value="16,9"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="TabBorder"
+                                Margin="0,0,8,0"
+                                Padding="{TemplateBinding Padding}"
+                                CornerRadius="10,10,0,0"
+                                BorderThickness="1"
+                                BorderBrush="Transparent"
+                                Background="Transparent">
+                            <ContentPresenter ContentSource="Header"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="#EEF4FF"/>
+                                <Setter Property="Foreground" Value="#2563EB"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="#FFFFFF"/>
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#BFDBFE"/>
+                                <Setter Property="Foreground" Value="#1D4ED8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ModernDatePickerStyle" TargetType="DatePicker">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
         </Style>
     </Window.Resources>
 
@@ -149,21 +190,25 @@
                                 <TextBlock Text="开始时间：" Width="90" VerticalAlignment="Center"
                                            FontWeight="Bold" Foreground="#555" FontSize="14"/>
                                 <DatePicker SelectedDate="{Binding CustomStartDate, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="140" Height="32"/>
+                                            Width="140"
+                                            Style="{StaticResource ModernDatePickerStyle}"/>
                                 <ComboBox ItemsSource="{Binding HourOptions}"
                                           SelectedItem="{Binding CustomStartHour, UpdateSourceTrigger=PropertyChanged}"
                                           ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32" Margin="8,0,0,0"/>
+                                          Width="58" Margin="8,0,0,0"
+                                          Style="{StaticResource ModernComboBoxStyle}"/>
                                 <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
                                 <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
                                           SelectedItem="{Binding CustomStartMinute, UpdateSourceTrigger=PropertyChanged}"
                                           ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32"/>
+                                          Width="58"
+                                          Style="{StaticResource ModernComboBoxStyle}"/>
                                 <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
                                 <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
                                           SelectedItem="{Binding CustomStartSecond, UpdateSourceTrigger=PropertyChanged}"
                                           ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32"/>
+                                          Width="58"
+                                          Style="{StaticResource ModernComboBoxStyle}"/>
                             </StackPanel>
 
                             <!-- 自定义截止时间 -->
@@ -171,21 +216,25 @@
                                 <TextBlock Text="截止时间：" Width="90" VerticalAlignment="Center"
                                            FontWeight="Bold" Foreground="#555" FontSize="14"/>
                                 <DatePicker SelectedDate="{Binding CustomEndDate, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="140" Height="32"/>
+                                            Width="140"
+                                            Style="{StaticResource ModernDatePickerStyle}"/>
                                 <ComboBox ItemsSource="{Binding HourOptions}"
                                           SelectedItem="{Binding CustomEndHour, UpdateSourceTrigger=PropertyChanged}"
                                           ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32" Margin="8,0,0,0"/>
+                                          Width="58" Margin="8,0,0,0"
+                                          Style="{StaticResource ModernComboBoxStyle}"/>
                                 <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
                                 <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
                                           SelectedItem="{Binding CustomEndMinute, UpdateSourceTrigger=PropertyChanged}"
                                           ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32"/>
+                                          Width="58"
+                                          Style="{StaticResource ModernComboBoxStyle}"/>
                                 <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
                                 <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
                                           SelectedItem="{Binding CustomEndSecond, UpdateSourceTrigger=PropertyChanged}"
                                           ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32"/>
+                                          Width="58"
+                                          Style="{StaticResource ModernComboBoxStyle}"/>
                             </StackPanel>
 
                         </StackPanel>
@@ -384,6 +433,46 @@
                                   HorizontalScrollBarVisibility="Disabled"
                                   Padding="10"
                                   Height="150">
+                        <ScrollViewer.Resources>
+                            <Style TargetType="Thumb">
+                                <Setter Property="Background" Value="#94A3B8"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Margin="2"/>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+
+                            <Style TargetType="ScrollBar">
+                                <Setter Property="Width" Value="12"/>
+                                <Setter Property="Background" Value="#F1F5F9"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ScrollBar">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                                                <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                                    <Track.DecreaseRepeatButton>
+                                                        <RepeatButton Command="ScrollBar.PageUpCommand"
+                                                                      Background="Transparent"
+                                                                      BorderThickness="0"/>
+                                                    </Track.DecreaseRepeatButton>
+                                                    <Track.Thumb>
+                                                        <Thumb/>
+                                                    </Track.Thumb>
+                                                    <Track.IncreaseRepeatButton>
+                                                        <RepeatButton Command="ScrollBar.PageDownCommand"
+                                                                      Background="Transparent"
+                                                                      BorderThickness="0"/>
+                                                    </Track.IncreaseRepeatButton>
+                                                </Track>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ScrollViewer.Resources>
                         <ItemsControl ItemsSource="{Binding Logs}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
