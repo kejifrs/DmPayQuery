@@ -7,7 +7,7 @@ namespace DmPayQuery.Services;
 public class CacheService : ICacheService
 {
     private readonly string _cacheFilePath;
-    private const int CacheValidSeconds = 3600;
+    private const int CacheValidSeconds = 7200;
 
     public CacheService()
     {

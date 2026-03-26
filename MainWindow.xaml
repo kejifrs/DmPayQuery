@@ -148,36 +148,44 @@
                             <StackPanel Orientation="Horizontal" Margin="0,10">
                                 <TextBlock Text="开始时间：" Width="90" VerticalAlignment="Center"
                                            FontWeight="Bold" Foreground="#555" FontSize="14"/>
-                                <TextBox Text="{Binding CustomStartTime, UpdateSourceTrigger=PropertyChanged}"
-                                         Width="200" Height="32"
-                                         VerticalContentAlignment="Center"
-                                         Padding="8,0"
-                                         BorderBrush="#DDD"
-                                         BorderThickness="1"
-                                         Background="White"
-                                         FontSize="13"
-                                         FontFamily="Consolas"
-                                         ToolTip="格式：yyyy-MM-dd HH:mm:ss"/>
-                                <TextBlock Text="格式：yyyy-MM-dd HH:mm:ss" FontSize="11"
-                                           Foreground="#AAA" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                <DatePicker SelectedDate="{Binding CustomStartDate, UpdateSourceTrigger=PropertyChanged}"
+                                            Width="140" Height="32"/>
+                                <ComboBox ItemsSource="{Binding HourOptions}"
+                                          SelectedItem="{Binding CustomStartHour, UpdateSourceTrigger=PropertyChanged}"
+                                          ItemStringFormat="{}{0:D2}"
+                                          Width="55" Height="32" Margin="8,0,0,0"/>
+                                <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
+                                <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
+                                          SelectedItem="{Binding CustomStartMinute, UpdateSourceTrigger=PropertyChanged}"
+                                          ItemStringFormat="{}{0:D2}"
+                                          Width="55" Height="32"/>
+                                <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
+                                <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
+                                          SelectedItem="{Binding CustomStartSecond, UpdateSourceTrigger=PropertyChanged}"
+                                          ItemStringFormat="{}{0:D2}"
+                                          Width="55" Height="32"/>
                             </StackPanel>
 
                             <!-- 自定义截止时间 -->
                             <StackPanel Orientation="Horizontal" Margin="0,4">
                                 <TextBlock Text="截止时间：" Width="90" VerticalAlignment="Center"
                                            FontWeight="Bold" Foreground="#555" FontSize="14"/>
-                                <TextBox Text="{Binding CustomEndTime, UpdateSourceTrigger=PropertyChanged}"
-                                         Width="200" Height="32"
-                                         VerticalContentAlignment="Center"
-                                         Padding="8,0"
-                                         BorderBrush="#DDD"
-                                         BorderThickness="1"
-                                         Background="White"
-                                         FontSize="13"
-                                         FontFamily="Consolas"
-                                         ToolTip="格式：yyyy-MM-dd HH:mm:ss"/>
-                                <TextBlock Text="格式：yyyy-MM-dd HH:mm:ss" FontSize="11"
-                                           Foreground="#AAA" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                <DatePicker SelectedDate="{Binding CustomEndDate, UpdateSourceTrigger=PropertyChanged}"
+                                            Width="140" Height="32"/>
+                                <ComboBox ItemsSource="{Binding HourOptions}"
+                                          SelectedItem="{Binding CustomEndHour, UpdateSourceTrigger=PropertyChanged}"
+                                          ItemStringFormat="{}{0:D2}"
+                                          Width="55" Height="32" Margin="8,0,0,0"/>
+                                <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
+                                <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
+                                          SelectedItem="{Binding CustomEndMinute, UpdateSourceTrigger=PropertyChanged}"
+                                          ItemStringFormat="{}{0:D2}"
+                                          Width="55" Height="32"/>
+                                <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
+                                <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
+                                          SelectedItem="{Binding CustomEndSecond, UpdateSourceTrigger=PropertyChanged}"
+                                          ItemStringFormat="{}{0:D2}"
+                                          Width="55" Height="32"/>
                             </StackPanel>
 
                         </StackPanel>
@@ -362,7 +370,7 @@
                 </Grid.RowDefinitions>
 
                 <TextBlock Text="📋 运行日志"
-                           FontSize="16" FontWeight="Bold"
+                           FontSize="14" FontWeight="Bold"
                            Foreground="#333"
                            Margin="0,0,0,8"/>
 
@@ -381,7 +389,7 @@
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Message}"
                                                Foreground="{Binding Color, Converter={StaticResource StringToColorConverter}}"
-                                               FontSize="13"
+                                               FontSize="12"
                                                TextWrapping="Wrap"
                                                Margin="0,3"
                                                FontFamily="Consolas"/>

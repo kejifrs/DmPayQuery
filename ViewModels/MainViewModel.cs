@@ -13,6 +13,8 @@ namespace DmPayQuery.ViewModels;
 
 public partial class MainViewModel(IApiService apiService, ICacheService cacheService, IExcelService excelService) : ObservableObject
 {
+    private const int LoginCacheValidSeconds = 7200;
+
     [ObservableProperty]
     public partial string FilePath { get; set; } = string.Empty;
 
@@ -36,6 +38,41 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
     /// <summary>模式4/5的自定义截止时间（格式：yyyy-MM-dd HH:mm:ss）</summary>
     [ObservableProperty]
     public partial string CustomEndTime { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+    [ObservableProperty]
+    public partial DateTime? CustomStartDate { get; set; } = DateTime.Today;
+
+    [ObservableProperty]
+    public partial int CustomStartHour { get; set; } = 0;
+
+    [ObservableProperty]
+    public partial int CustomStartMinute { get; set; } = 0;
+
+    [ObservableProperty]
+    public partial int CustomStartSecond { get; set; } = 0;
+
+    [ObservableProperty]
+    public partial DateTime? CustomEndDate { get; set; } = DateTime.Today;
+
+    [ObservableProperty]
+    public partial int CustomEndHour { get; set; } = DateTime.Now.Hour;
+
+    [ObservableProperty]
+    public partial int CustomEndMinute { get; set; } = DateTime.Now.Minute;
+
+    [ObservableProperty]
+    public partial int CustomEndSecond { get; set; } = DateTime.Now.Second;
+
+    public IReadOnlyList<int> HourOptions { get; } = [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+        12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
+    ];
+
+    public IReadOnlyList<int> MinuteSecondOptions { get; } = [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+        20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+        40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
+    ];
 
     /// <summary>是否为高级模式（模式4/5）</summary>
     public bool IsAdvancedMode => QueryMode is QueryMode.RoomSerialAndCreateTime or QueryMode.AnchorSerialAndIdCard;
@@ -76,6 +113,16 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
             QueryMode = QueryMode.RoomSerialAndCreateTime;
     }
 
+    partial void OnCustomStartDateChanged(DateTime? value) => SyncCustomStartTime();
+    partial void OnCustomStartHourChanged(int value) => SyncCustomStartTime();
+    partial void OnCustomStartMinuteChanged(int value) => SyncCustomStartTime();
+    partial void OnCustomStartSecondChanged(int value) => SyncCustomStartTime();
+
+    partial void OnCustomEndDateChanged(DateTime? value) => SyncCustomEndTime();
+    partial void OnCustomEndHourChanged(int value) => SyncCustomEndTime();
+    partial void OnCustomEndMinuteChanged(int value) => SyncCustomEndTime();
+    partial void OnCustomEndSecondChanged(int value) => SyncCustomEndTime();
+
     [RelayCommand]
     private void SelectFile()
     {
@@ -104,16 +151,14 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
         // 模式4/5 需校验自定义时间格式
         if (IsAdvancedMode)
         {
-            if (!DateTime.TryParse(CustomStartTime, out _))
+            if (!TryBuildAdvancedTimeRange(out var startTime, out var endTime, out var error))
             {
-                MessageBox.Show("开始时间格式无效，请使用 yyyy-MM-dd HH:mm:ss 格式", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(error, "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            if (!DateTime.TryParse(CustomEndTime, out _))
-            {
-                MessageBox.Show("截止时间格式无效，请使用 yyyy-MM-dd HH:mm:ss 格式", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
+
+            CustomStartTime = startTime;
+            CustomEndTime = endTime;
         }
 
         var outputPath = Path.Combine(
@@ -227,7 +272,8 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
             // 第6步：保存结果到 Excel
             try
             {
-                await excelService.SaveExcelAsync(_currentDataTable, outputPath);
+                var outputTable = BuildOutputDataTable();
+                await excelService.SaveExcelAsync(outputTable, outputPath);
                 AddLog($"📁 结果已保存：{outputPath}", "Blue");
 
                 // 第7步：自动打开结果文件
@@ -274,7 +320,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
         if (cache != null)
         {
             var elapsed   = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - cache.Timestamp;
-            var remaining = 3600 - elapsed;
+            var remaining = LoginCacheValidSeconds - elapsed;
             var loginTime = DateTimeOffset.FromUnixTimeSeconds(cache.Timestamp).ToLocalTime().ToString("HH:mm:ss");
 
             AddLog($"🟢 检测到有效缓存【账号：{cache.Account} | 登录时间：{loginTime} | 剩余：{remaining / 60}分{remaining % 60}秒】", "Green");
@@ -442,8 +488,8 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
 
     private async Task ProcessAdvancedRowAsync(DataRow row, int rowIndex, QueryStats stats)
     {
-        // 模式4/5 从"消费ID"列读取厅ID或主播ID
-        var id = SafeGetColumn(row, "消费ID");
+        var idColumnName = QueryMode == QueryMode.RoomSerialAndCreateTime ? "厅ID" : "主播ID";
+        var id = SafeGetColumn(row, idColumnName);
         if (string.IsNullOrEmpty(id))
         {
             lock (_rowWriteLock)
@@ -451,7 +497,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
                 stats.FailCount++;
                 stats.TotalCount++;
             }
-            AddLog($"❌ 第{rowIndex + 1}行：ID为空，请检查Excel列名（消费ID）", "Red");
+            AddLog($"❌ 第{rowIndex + 1}行：ID为空，请检查Excel列名（{idColumnName}）", "Red");
             return;
         }
 
@@ -564,6 +610,122 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
             DeadlineMode.Days30 => startDate.AddDays(29).ToString("yyyy-MM-dd 23:59:59"),
             _                   => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")  // 最新
         };
+    }
+
+    private void SyncCustomStartTime()
+    {
+        if (!CustomStartDate.HasValue)
+        {
+            CustomStartTime = string.Empty;
+            return;
+        }
+
+        var dt = new DateTime(
+            CustomStartDate.Value.Year,
+            CustomStartDate.Value.Month,
+            CustomStartDate.Value.Day,
+            CustomStartHour,
+            CustomStartMinute,
+            CustomStartSecond);
+
+        CustomStartTime = dt.ToString("yyyy-MM-dd HH:mm:ss");
+    }
+
+    private void SyncCustomEndTime()
+    {
+        if (!CustomEndDate.HasValue)
+        {
+            CustomEndTime = string.Empty;
+            return;
+        }
+
+        var dt = new DateTime(
+            CustomEndDate.Value.Year,
+            CustomEndDate.Value.Month,
+            CustomEndDate.Value.Day,
+            CustomEndHour,
+            CustomEndMinute,
+            CustomEndSecond);
+
+        CustomEndTime = dt.ToString("yyyy-MM-dd HH:mm:ss");
+    }
+
+    private bool TryBuildAdvancedTimeRange(out string startTime, out string endTime, out string error)
+    {
+        startTime = string.Empty;
+        endTime = string.Empty;
+        error = string.Empty;
+
+        if (!CustomStartDate.HasValue)
+        {
+            error = "请选择开始时间日期";
+            return false;
+        }
+
+        if (!CustomEndDate.HasValue)
+        {
+            error = "请选择截止时间日期";
+            return false;
+        }
+
+        var start = new DateTime(
+            CustomStartDate.Value.Year,
+            CustomStartDate.Value.Month,
+            CustomStartDate.Value.Day,
+            CustomStartHour,
+            CustomStartMinute,
+            CustomStartSecond);
+
+        var end = new DateTime(
+            CustomEndDate.Value.Year,
+            CustomEndDate.Value.Month,
+            CustomEndDate.Value.Day,
+            CustomEndHour,
+            CustomEndMinute,
+            CustomEndSecond);
+
+        if (end < start)
+        {
+            error = "截止时间不能早于开始时间";
+            return false;
+        }
+
+        startTime = start.ToString("yyyy-MM-dd HH:mm:ss");
+        endTime = end.ToString("yyyy-MM-dd HH:mm:ss");
+        return true;
+    }
+
+    private DataTable BuildOutputDataTable()
+    {
+        if (_currentDataTable == null)
+            return new DataTable();
+
+        var columns = QueryMode switch
+        {
+            QueryMode.RoomSerialAndCreateTime => new[] { "厅ID", "厅流水", "开厅时间", "查询开始时间", "查询截止时间" },
+            QueryMode.AnchorSerialAndIdCard => new[] { "主播ID", "主播流水", "身份证号", "查询开始时间", "查询截止时间" },
+            _ => null
+        };
+
+        if (columns == null)
+            return _currentDataTable;
+
+        var output = new DataTable();
+        foreach (var col in columns)
+            output.Columns.Add(col);
+
+        foreach (DataRow sourceRow in _currentDataTable.Rows)
+        {
+            var targetRow = output.NewRow();
+            foreach (var col in columns)
+            {
+                if (_currentDataTable.Columns.Contains(col))
+                    targetRow[col] = sourceRow[col];
+            }
+            output.Rows.Add(targetRow);
+        }
+
+        return output;
     }
 
     /// <summary>安全读取 DataRow 列值，列不存在时返回 null 而非抛出异常</summary>

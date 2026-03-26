@@ -1,6 +1,7 @@
 ﻿using System.Net.Http;
 using System.Text.Json;
 using System.Diagnostics;
+using System.Globalization;
 using DmPayQuery.Models;
 
 namespace DmPayQuery.Services;
@@ -273,9 +274,12 @@ public class ApiService : IApiService
         try
         {
             var encodedId  = Uri.EscapeDataString(roomId);
-            var encodedStart = Uri.EscapeDataString(startTime);
-            var encodedEnd   = Uri.EscapeDataString(endTime);
+            var normalizedStart = NormalizeDateOnly(startTime);
+            var normalizedEnd = NormalizeDateOnly(endTime);
+            var encodedStart = Uri.EscapeDataString(normalizedStart);
+            var encodedEnd   = Uri.EscapeDataString(normalizedEnd);
 
+            // 与后台实测一致：erbanNos + startTime/endTime(yyyy-MM-dd)
             var url = $"{BaseUrl}/admin/roomSerial/listByPage" +
                       $"?pageNumber=1&pageSize=10&erbanNos={encodedId}" +
                       $"&startTime={encodedStart}&endTime={encodedEnd}&isPermit=1&level=0";
@@ -285,7 +289,7 @@ public class ApiService : IApiService
 
             var response = await _httpClient.SendAsync(request);
             var text = await response.Content.ReadAsStringAsync();
-            Debug.WriteLine($"RoomSerial {roomId}: {text}");
+            Debug.WriteLine($"RoomSerial {roomId} (fixed): {text}");
 
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
                 return (0, $"HTTP错误: {(int)response.StatusCode}");
@@ -294,38 +298,17 @@ public class ApiService : IApiService
             var root = doc.RootElement;
 
             if (root.TryGetProperty("code", out var codeEl) && codeEl.GetInt32() != 200)
-                return (0, $"API错误: {codeEl.GetInt32()}");
-
-            // Try both: data.rows or top-level rows
-            JsonElement rowsEl;
-            if (root.TryGetProperty("data", out var dataEl) &&
-                dataEl.ValueKind == JsonValueKind.Object &&
-                dataEl.TryGetProperty("rows", out rowsEl))
             {
-                // wrapped
-            }
-            else if (!root.TryGetProperty("rows", out rowsEl) || rowsEl.ValueKind != JsonValueKind.Array)
-            {
-                return (0, string.Empty); // 无记录视为 0
+                var msg = root.TryGetProperty("message", out var msgEl)
+                    ? GetJsonElementString(msgEl)
+                    : string.Empty;
+                return string.IsNullOrEmpty(msg)
+                    ? (0, $"API错误: {codeEl.GetInt32()}")
+                    : (0, $"API错误: {codeEl.GetInt32()} - {msg}");
             }
 
-            foreach (var item in rowsEl.EnumerateArray())
-            {
-                if (item.TryGetProperty("erbanNo", out var erbanEl) &&
-                    erbanEl.GetString() == roomId &&
-                    item.TryGetProperty("totalGold", out var goldEl))
-                {
-                    return (goldEl.GetInt64(), string.Empty);
-                }
-            }
-
-            // If batch returns one record without matching erbanNo, take first record
-            if (rowsEl.GetArrayLength() > 0)
-            {
-                var first = rowsEl[0];
-                if (first.TryGetProperty("totalGold", out var goldEl2))
-                    return (goldEl2.GetInt64(), string.Empty);
-            }
+            if (TryExtractRoomSerial(root, roomId, out var totalGold))
+                return (totalGold, string.Empty);
 
             return (0, string.Empty);
         }
@@ -336,6 +319,64 @@ public class ApiService : IApiService
         }
     }
 
+    private static bool TryExtractRoomSerial(JsonElement root, string roomId, out long totalGold)
+    {
+        totalGold = 0;
+
+        JsonElement rowsEl;
+        if (root.TryGetProperty("data", out var dataEl) &&
+            dataEl.ValueKind == JsonValueKind.Object &&
+            dataEl.TryGetProperty("rows", out rowsEl) &&
+            rowsEl.ValueKind == JsonValueKind.Array)
+        {
+            // wrapped
+        }
+        else if (!root.TryGetProperty("rows", out rowsEl) || rowsEl.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        foreach (var item in rowsEl.EnumerateArray())
+        {
+            if (ItemMatchesRoomId(item, roomId) && item.TryGetProperty("totalGold", out var goldEl))
+            {
+                totalGold = GetJsonElementInt64(goldEl);
+                return true;
+            }
+        }
+
+        if (rowsEl.GetArrayLength() > 0)
+        {
+            var first = rowsEl[0];
+            if (first.TryGetProperty("totalGold", out var goldEl2))
+            {
+                totalGold = GetJsonElementInt64(goldEl2);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string NormalizeDateOnly(string value)
+    {
+        if (DateTime.TryParse(value, out var dt))
+            return dt.ToString("yyyy-MM-dd");
+
+        return value.Length >= 10 ? value[..10] : value;
+    }
+
+    private static bool ItemMatchesRoomId(JsonElement item, string roomId)
+    {
+        string[] keys = ["erbanNo", "userErbanNo", "guildId", "leaderId", "roomUid"];
+        foreach (var key in keys)
+        {
+            if (item.TryGetProperty(key, out var el) && GetJsonElementString(el) == roomId)
+                return true;
+        }
+
+        return false;
+    }
     public async Task<(string createDate, string error)> GetGuildCreateTimeAsync(
         string roomId, string token)
     {
@@ -458,16 +499,16 @@ public class ApiService : IApiService
             foreach (var item in rowsEl.EnumerateArray())
             {
                 if (item.TryGetProperty("reciveErbanNo", out var idEl) &&
-                    idEl.GetString() == anchorId &&
+                    GetJsonElementString(idEl) == anchorId &&
                     item.TryGetProperty("totalGoldNum", out var goldEl))
                 {
-                    return (goldEl.GetInt64(), string.Empty);
+                    return (GetJsonElementInt64(goldEl), string.Empty);
                 }
             }
 
             var first = rowsEl[0];
             if (first.TryGetProperty("totalGoldNum", out var goldEl3))
-                return (goldEl3.GetInt64(), string.Empty);
+                return (GetJsonElementInt64(goldEl3), string.Empty);
 
             return (0, string.Empty);
         }
@@ -475,6 +516,38 @@ public class ApiService : IApiService
         {
             Debug.WriteLine($"GetAnchorSerial异常({anchorId}): {ex}");
             return (0, $"异常: {ex.Message}");
+        }
+    }
+
+    private static string GetJsonElementString(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString() ?? string.Empty,
+            JsonValueKind.Number => element.GetRawText(),
+            _ => string.Empty
+        };
+    }
+
+    private static long GetJsonElementInt64(JsonElement element)
+    {
+        try
+        {
+            return element.ValueKind switch
+            {
+                JsonValueKind.Number when element.TryGetInt64(out var value) => value,
+                JsonValueKind.Number when element.TryGetDecimal(out var decimalValue) => (long)Math.Truncate(decimalValue),
+                JsonValueKind.Number when double.TryParse(element.GetRawText(), NumberStyles.Any, CultureInfo.InvariantCulture, out var doubleValue) => (long)Math.Truncate(doubleValue),
+                JsonValueKind.String when long.TryParse(element.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var stringLong) => stringLong,
+                JsonValueKind.String when decimal.TryParse(element.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var stringDecimal) => (long)Math.Truncate(stringDecimal),
+                JsonValueKind.String when long.TryParse(element.GetString(), NumberStyles.Any, CultureInfo.CurrentCulture, out var currentLong) => currentLong,
+                JsonValueKind.String when decimal.TryParse(element.GetString(), NumberStyles.Any, CultureInfo.CurrentCulture, out var currentDecimal) => (long)Math.Truncate(currentDecimal),
+                _ => 0L
+            };
+        }
+        catch
+        {
+            return 0L;
         }
     }
 
