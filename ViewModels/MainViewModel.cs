@@ -323,7 +323,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
             var remaining = LoginCacheValidSeconds - elapsed;
             var loginTime = DateTimeOffset.FromUnixTimeSeconds(cache.Timestamp).ToLocalTime().ToString("HH:mm:ss");
 
-            AddLog($"🟢 检测到有效缓存【账号：{cache.Account} | 登录时间：{loginTime} | 剩余：{remaining / 60}分{remaining % 60}秒】", "Green");
+            AddLog($"🟢 检测到登录缓存【账号：{cache.Account} | 登录时间：{loginTime} | 剩余：{remaining / 60}分{remaining % 60}秒】", "Green");
             AddLog("🔍 验证缓存有效性...", "Cyan");
 
             if (await apiService.CheckTokenValidityAsync(cache.Token))

@@ -31,13 +31,261 @@
         <Style x:Key="TabItemStyle" TargetType="TabItem">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="Foreground" Value="#555"/>
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Foreground" Value="#1E88E5"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Padding" Value="16,9"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="TabBorder"
+                                Margin="0,0,8,0"
+                                Padding="{TemplateBinding Padding}"
+                                CornerRadius="10,10,0,0"
+                                BorderThickness="1"
+                                BorderBrush="Transparent"
+                                Background="Transparent">
+                            <ContentPresenter ContentSource="Header"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="#EEF4FF"/>
+                                <Setter Property="Foreground" Value="#2563EB"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="#FFFFFF"/>
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#BFDBFE"/>
+                                <Setter Property="Foreground" Value="#1D4ED8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 一体化日期时间容器 -->
+        <Style x:Key="DateTimeGroupBorder" TargetType="Border">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+        </Style>
+
+        <!-- 容器内无边框 DatePicker -->
+        <Style x:Key="InlineDatePickerStyle" TargetType="DatePicker">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- 下拉列表窄滚动条 Thumb -->
+        <Style x:Key="SlimScrollThumb" TargetType="Thumb">
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="#C8CFD5" CornerRadius="3" Margin="1"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 下拉列表窄滚动条 RepeatButton（透明占位） -->
+        <Style x:Key="SlimScrollRepeatButton" TargetType="RepeatButton">
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="Transparent"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 下拉列表窄滚动条 ScrollBar -->
+        <Style x:Key="SlimVerticalScrollBar" TargetType="ScrollBar">
+            <Setter Property="Width" Value="6"/>
+            <Setter Property="MinWidth" Value="6"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SlimScrollRepeatButton}"
+                                              Command="ScrollBar.PageUpCommand"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource SlimScrollThumb}"/>
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SlimScrollRepeatButton}"
+                                              Command="ScrollBar.PageDownCommand"/>
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 下拉列表窄滚动条 ScrollViewer -->
+        <ControlTemplate x:Key="SlimScrollViewerTemplate" TargetType="ScrollViewer">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ScrollContentPresenter Grid.Column="0"/>
+                <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1"
+                           Style="{StaticResource SlimVerticalScrollBar}"
+                           Value="{TemplateBinding VerticalOffset}"
+                           Maximum="{TemplateBinding ScrollableHeight}"
+                           ViewportSize="{TemplateBinding ViewportHeight}"
+                           Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+            </Grid>
+        </ControlTemplate>
+
+        <!-- 容器内无背景 ComboBox（完全扁平 + 窄滚动条下拉） -->
+        <Style x:Key="InlineComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <!-- 不可见的 ToggleButton 覆盖整个区域用于打开下拉 -->
+                            <ToggleButton x:Name="ToggleButton"
+                                          Focusable="False"
+                                          ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <!-- 选中值显示 -->
+                            <ContentPresenter x:Name="ContentSite"
+                                              IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                              Margin="6,0,14,0"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left"/>
+
+                            <!-- 小箭头 -->
+                            <Path x:Name="Arrow"
+                                  Data="M 0 0 L 4 4 L 8 0"
+                                  Fill="#94A3B8"
+                                  Stroke="#94A3B8"
+                                  StrokeThickness="1"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,4,0"/>
+
+                            <!-- 下拉弹出框 -->
+                            <Popup x:Name="Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Grid x:Name="DropDown"
+                                      MinWidth="{TemplateBinding ActualWidth}"
+                                      MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                      SnapsToDevicePixels="True">
+                                    <Border x:Name="DropDownBorder"
+                                            Background="White"
+                                            BorderBrush="#CBD5E1"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="0,4">
+                                        <ScrollViewer SnapsToDevicePixels="True"
+                                                      Template="{StaticResource SlimScrollViewerTemplate}">
+                                            <StackPanel IsItemsHost="True"
+                                                        KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Arrow" Property="Fill" Value="#475569"/>
+                                <Setter TargetName="Arrow" Property="Stroke" Value="#475569"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Padding" Value="8,4"/>
+                        <Setter Property="FontSize" Value="13"/>
+                        <Setter Property="Foreground" Value="#334155"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ComboBoxItem">
+                                    <Border x:Name="Bd"
+                                            Background="{TemplateBinding Background}"
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="#EEF2FF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="#DBEAFE"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 时间分隔符冒号 -->
+        <Style x:Key="TimeSeparator" TargetType="TextBlock">
+            <Setter Property="Text" Value=":"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <!-- 日期与时间之间的竖线分隔 -->
+        <Style x:Key="DateTimeDivider" TargetType="Border">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Background" Value="#E2E8F0"/>
+            <Setter Property="Margin" Value="4,5"/>
         </Style>
     </Window.Resources>
 
@@ -144,48 +392,66 @@
                                              VerticalContentAlignment="Center" FontSize="14"/>
                             </StackPanel>
 
-                            <!-- 自定义开始时间 -->
+                            <!-- 自定义开始时间（一体化） -->
                             <StackPanel Orientation="Horizontal" Margin="0,10">
                                 <TextBlock Text="开始时间：" Width="90" VerticalAlignment="Center"
                                            FontWeight="Bold" Foreground="#555" FontSize="14"/>
-                                <DatePicker SelectedDate="{Binding CustomStartDate, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="140" Height="32"/>
-                                <ComboBox ItemsSource="{Binding HourOptions}"
-                                          SelectedItem="{Binding CustomStartHour, UpdateSourceTrigger=PropertyChanged}"
-                                          ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32" Margin="8,0,0,0"/>
-                                <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
-                                <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
-                                          SelectedItem="{Binding CustomStartMinute, UpdateSourceTrigger=PropertyChanged}"
-                                          ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32"/>
-                                <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
-                                <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
-                                          SelectedItem="{Binding CustomStartSecond, UpdateSourceTrigger=PropertyChanged}"
-                                          ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32"/>
+                                <Border Style="{StaticResource DateTimeGroupBorder}">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <DatePicker SelectedDate="{Binding CustomStartDate, UpdateSourceTrigger=PropertyChanged}"
+                                                    Width="128"
+                                                    Style="{StaticResource InlineDatePickerStyle}"/>
+                                        <Border Style="{StaticResource DateTimeDivider}"/>
+                                        <ComboBox ItemsSource="{Binding HourOptions}"
+                                                  SelectedItem="{Binding CustomStartHour, UpdateSourceTrigger=PropertyChanged}"
+                                                  ItemStringFormat="{}{0:D2}"
+                                                  Width="52"
+                                                  Style="{StaticResource InlineComboBoxStyle}"/>
+                                        <TextBlock Style="{StaticResource TimeSeparator}"/>
+                                        <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
+                                                  SelectedItem="{Binding CustomStartMinute, UpdateSourceTrigger=PropertyChanged}"
+                                                  ItemStringFormat="{}{0:D2}"
+                                                  Width="52"
+                                                  Style="{StaticResource InlineComboBoxStyle}"/>
+                                        <TextBlock Style="{StaticResource TimeSeparator}"/>
+                                        <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
+                                                  SelectedItem="{Binding CustomStartSecond, UpdateSourceTrigger=PropertyChanged}"
+                                                  ItemStringFormat="{}{0:D2}"
+                                                  Width="52"
+                                                  Style="{StaticResource InlineComboBoxStyle}"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
 
-                            <!-- 自定义截止时间 -->
+                            <!-- 自定义截止时间（一体化） -->
                             <StackPanel Orientation="Horizontal" Margin="0,4">
                                 <TextBlock Text="截止时间：" Width="90" VerticalAlignment="Center"
                                            FontWeight="Bold" Foreground="#555" FontSize="14"/>
-                                <DatePicker SelectedDate="{Binding CustomEndDate, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="140" Height="32"/>
-                                <ComboBox ItemsSource="{Binding HourOptions}"
-                                          SelectedItem="{Binding CustomEndHour, UpdateSourceTrigger=PropertyChanged}"
-                                          ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32" Margin="8,0,0,0"/>
-                                <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
-                                <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
-                                          SelectedItem="{Binding CustomEndMinute, UpdateSourceTrigger=PropertyChanged}"
-                                          ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32"/>
-                                <TextBlock Text=":" VerticalAlignment="Center" Margin="4,0"/>
-                                <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
-                                          SelectedItem="{Binding CustomEndSecond, UpdateSourceTrigger=PropertyChanged}"
-                                          ItemStringFormat="{}{0:D2}"
-                                          Width="55" Height="32"/>
+                                <Border Style="{StaticResource DateTimeGroupBorder}">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <DatePicker SelectedDate="{Binding CustomEndDate, UpdateSourceTrigger=PropertyChanged}"
+                                                    Width="128"
+                                                    Style="{StaticResource InlineDatePickerStyle}"/>
+                                        <Border Style="{StaticResource DateTimeDivider}"/>
+                                        <ComboBox ItemsSource="{Binding HourOptions}"
+                                                  SelectedItem="{Binding CustomEndHour, UpdateSourceTrigger=PropertyChanged}"
+                                                  ItemStringFormat="{}{0:D2}"
+                                                  Width="52"
+                                                  Style="{StaticResource InlineComboBoxStyle}"/>
+                                        <TextBlock Style="{StaticResource TimeSeparator}"/>
+                                        <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
+                                                  SelectedItem="{Binding CustomEndMinute, UpdateSourceTrigger=PropertyChanged}"
+                                                  ItemStringFormat="{}{0:D2}"
+                                                  Width="52"
+                                                  Style="{StaticResource InlineComboBoxStyle}"/>
+                                        <TextBlock Style="{StaticResource TimeSeparator}"/>
+                                        <ComboBox ItemsSource="{Binding MinuteSecondOptions}"
+                                                  SelectedItem="{Binding CustomEndSecond, UpdateSourceTrigger=PropertyChanged}"
+                                                  ItemStringFormat="{}{0:D2}"
+                                                  Width="52"
+                                                  Style="{StaticResource InlineComboBoxStyle}"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
 
                         </StackPanel>
@@ -383,7 +649,8 @@
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"
                                   Padding="10"
-                                  Height="150">
+                                  Height="150"
+                                  Template="{StaticResource SlimScrollViewerTemplate}">
                         <ItemsControl ItemsSource="{Binding Logs}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
