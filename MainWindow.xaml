@@ -7,7 +7,7 @@
         xmlns:models="clr-namespace:DmPayQuery.Models"
         xmlns:converters="clr-namespace:DmPayQuery.Converters"
         mc:Ignorable="d"
-        Title="哆咪消费一键查询工具 v3.2.1"
+        Title="哆咪一键查询工具 v3.2.1"
         Icon="pack://application:,,,/DmPayQuery;component/myicon.ico"
         SizeToContent="WidthAndHeight"
         MaxWidth="1200" MaxHeight="900"
@@ -73,7 +73,7 @@
                         <StackPanel Margin="0,14,0,0">
 
                             <!-- 提示文字 -->
-                            <TextBlock Text="📋 从表格读取「消费ID」或「消费UID」列"
+                            <TextBlock Text="📋 查询表需包含[拍走时间]和[消费ID]或[消费UID]列"
                                        FontSize="12" Foreground="#888" Margin="0,0,0,10"/>
 
                             <!-- 查询模式 -->
@@ -129,7 +129,7 @@
                         <StackPanel Margin="0,14,0,0">
 
                             <!-- 提示文字 -->
-                            <TextBlock Text="📋 从表格读取「消费ID」列（厅ID 或 主播ID，不限制长度）"
+                            <TextBlock Text="📋 查询表需包含[厅ID]或[主播ID]列"
                                        FontSize="12" Foreground="#888" Margin="0,0,0,10"/>
 
                             <!-- 查询模式 -->
