@@ -489,7 +489,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
         }
         else
         {
-            // 模式5：查主播流水 + 身份证号（脱敏展示）
+            // 模式5：查主播流水 + 身份证号（原始值直接显示）
             var (totalGoldNum, serialErr) = await apiService.GetAnchorSerialAsync(id, _currentToken!, startTime, endTime);
             var (idCard, cardErr)         = await apiService.GetUserIdCardAsync(id, _currentToken!);
 

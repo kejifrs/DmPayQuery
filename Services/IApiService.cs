@@ -32,7 +32,7 @@ public interface IApiService
     Task<(long totalGoldNum, string error)> GetAnchorSerialAsync(
         string anchorId, string token, string startTime, string endTime);
 
-    /// <summary>模式5：查询用户实名身份证号（脱敏展示，中间位以*掩码）</summary>
+    /// <summary>模式5：查询用户实名身份证号（原始值直接返回）</summary>
     Task<(string idCardNum, string error)> GetUserIdCardAsync(
         string userId, string token);
 }

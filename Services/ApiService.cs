@@ -517,20 +517,12 @@ public class ApiService : IApiService
             if (string.IsNullOrEmpty(idCard))
                 return (string.Empty, "无实名信息");
 
-            return (MaskIdCard(idCard), string.Empty);
+            return (idCard, string.Empty);
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"GetUserIdCard异常({userId}): {ex}");
             return (string.Empty, $"异常: {ex.Message}");
         }
-    }
-
-    /// <summary>身份证号脱敏：保留前6位和后4位，中间位以 '*' 掩码。</summary>
-    private static string MaskIdCard(string idCard)
-    {
-        if (idCard.Length <= 10)
-            return new string('*', idCard.Length);
-        return idCard[..6] + new string('*', idCard.Length - 10) + idCard[^4..];
     }
 }
