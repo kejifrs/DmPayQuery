@@ -10,6 +10,12 @@ public class ApiService : IApiService
     private readonly HttpClient _httpClient;
     private const string BaseUrl = "https://api.enlargemagic.com/api";
 
+    /// <summary>
+    /// 用于区分秒级与毫秒级时间戳的阈值（约 2001-09-09 对应的秒数 1e12）。
+    /// 大于此值视为毫秒时间戳，否则视为秒时间戳。
+    /// </summary>
+    private const long TimestampMillisecondThreshold = 1_000_000_000_000L;
+
     public ApiService(HttpClient httpClient)
     {
         _httpClient = httpClient;
@@ -255,5 +261,276 @@ public class ApiService : IApiService
             Debug.WriteLine($"获取用户信息异常: {ex}");
             return ("ID错误", "ID错误", "ID错误");
         }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // 模式4：厅流水（totalGold）& 开厅时间
+    // ──────────────────────────────────────────────────────────────
+
+    public async Task<(long totalGold, string error)> GetRoomSerialAsync(
+        string roomId, string token, string startTime, string endTime)
+    {
+        try
+        {
+            var encodedId  = Uri.EscapeDataString(roomId);
+            var encodedStart = Uri.EscapeDataString(startTime);
+            var encodedEnd   = Uri.EscapeDataString(endTime);
+
+            var url = $"{BaseUrl}/admin/roomSerial/listByPage" +
+                      $"?pageNumber=1&pageSize=10&erbanNos={encodedId}" +
+                      $"&startTime={encodedStart}&endTime={encodedEnd}&isPermit=1&level=0";
+
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("Authorization", token);
+
+            var response = await _httpClient.SendAsync(request);
+            var text = await response.Content.ReadAsStringAsync();
+            Debug.WriteLine($"RoomSerial {roomId}: {text}");
+
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                return (0, $"HTTP错误: {(int)response.StatusCode}");
+
+            using var doc = JsonDocument.Parse(text);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("code", out var codeEl) && codeEl.GetInt32() != 200)
+                return (0, $"API错误: {codeEl.GetInt32()}");
+
+            // Try both: data.rows or top-level rows
+            JsonElement rowsEl;
+            if (root.TryGetProperty("data", out var dataEl) &&
+                dataEl.ValueKind == JsonValueKind.Object &&
+                dataEl.TryGetProperty("rows", out rowsEl))
+            {
+                // wrapped
+            }
+            else if (!root.TryGetProperty("rows", out rowsEl) || rowsEl.ValueKind != JsonValueKind.Array)
+            {
+                return (0, string.Empty); // 无记录视为 0
+            }
+
+            foreach (var item in rowsEl.EnumerateArray())
+            {
+                if (item.TryGetProperty("erbanNo", out var erbanEl) &&
+                    erbanEl.GetString() == roomId &&
+                    item.TryGetProperty("totalGold", out var goldEl))
+                {
+                    return (goldEl.GetInt64(), string.Empty);
+                }
+            }
+
+            // If batch returns one record without matching erbanNo, take first record
+            if (rowsEl.GetArrayLength() > 0)
+            {
+                var first = rowsEl[0];
+                if (first.TryGetProperty("totalGold", out var goldEl2))
+                    return (goldEl2.GetInt64(), string.Empty);
+            }
+
+            return (0, string.Empty);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"GetRoomSerial异常({roomId}): {ex}");
+            return (0, $"异常: {ex.Message}");
+        }
+    }
+
+    public async Task<(string createDate, string error)> GetGuildCreateTimeAsync(
+        string roomId, string token)
+    {
+        try
+        {
+            var encodedId = Uri.EscapeDataString(roomId);
+            var url = $"{BaseUrl}/admin/guild/guild/list" +
+                      $"?roomErbanNo={encodedId}&pageNumber=1&pageSize=10" +
+                      "&startDate=&endDate=&creator=&name=&guildBizId=&leaderErbanNo=" +
+                      "&erbanNo=&status=&isSettingMargin=&isSettingHighQuality=" +
+                      "&type=&isCustomCommission=";
+
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("Authorization", token);
+
+            var response = await _httpClient.SendAsync(request);
+            var text = await response.Content.ReadAsStringAsync();
+            Debug.WriteLine($"GuildCreate {roomId}: {text}");
+
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                return (string.Empty, $"HTTP错误: {(int)response.StatusCode}");
+
+            using var doc = JsonDocument.Parse(text);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("code", out var codeEl) && codeEl.GetInt32() != 200)
+                return (string.Empty, $"API错误: {codeEl.GetInt32()}");
+
+            // Find rows array: could be data.rows, data.list, or top-level rows/list
+            JsonElement listEl = default;
+            bool found = false;
+            if (root.TryGetProperty("data", out var dataEl) && dataEl.ValueKind == JsonValueKind.Object)
+            {
+                if (dataEl.TryGetProperty("rows", out listEl) && listEl.ValueKind == JsonValueKind.Array)
+                    found = true;
+                else if (dataEl.TryGetProperty("list", out listEl) && listEl.ValueKind == JsonValueKind.Array)
+                    found = true;
+            }
+            if (!found && root.TryGetProperty("rows", out listEl) && listEl.ValueKind == JsonValueKind.Array)
+                found = true;
+            if (!found && root.TryGetProperty("list", out listEl) && listEl.ValueKind == JsonValueKind.Array)
+                found = true;
+
+            if (!found || listEl.GetArrayLength() == 0)
+                return (string.Empty, string.Empty);
+
+            var firstItem = listEl[0];
+            if (!firstItem.TryGetProperty("createTime", out var ctEl))
+                return (string.Empty, string.Empty);
+
+            long ts = ctEl.ValueKind == JsonValueKind.Number ? ctEl.GetInt64() : 0;
+            if (ts <= 0)
+                return (string.Empty, string.Empty);
+
+            // 自动识别秒级/毫秒级时间戳
+            var dto = ts > TimestampMillisecondThreshold
+                ? DateTimeOffset.FromUnixTimeMilliseconds(ts)
+                : DateTimeOffset.FromUnixTimeSeconds(ts);
+
+            return (dto.ToLocalTime().ToString("yyyy-MM-dd"), string.Empty);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"GetGuildCreate异常({roomId}): {ex}");
+            return (string.Empty, $"异常: {ex.Message}");
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // 模式5：主播流水（totalGoldNum）& 身份证号
+    // ──────────────────────────────────────────────────────────────
+
+    public async Task<(long totalGoldNum, string error)> GetAnchorSerialAsync(
+        string anchorId, string token, string startTime, string endTime)
+    {
+        try
+        {
+            var encodedId    = Uri.EscapeDataString(anchorId);
+            var encodedStart = Uri.EscapeDataString(startTime);
+            var encodedEnd   = Uri.EscapeDataString(endTime);
+
+            var url = $"{BaseUrl}/admin/giftSend/list" +
+                      $"?pageNum=1&pageSize=10&roomErbanNo=&sendErbanNo=" +
+                      $"&reciveErbanNo={encodedId}&startTime={encodedStart}" +
+                      $"&endTime={encodedEnd}&groupType=1&guildName=";
+
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("Authorization", token);
+
+            var response = await _httpClient.SendAsync(request);
+            var text = await response.Content.ReadAsStringAsync();
+            Debug.WriteLine($"AnchorSerial {anchorId}: {text}");
+
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                return (0, $"HTTP错误: {(int)response.StatusCode}");
+
+            using var doc = JsonDocument.Parse(text);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("code", out var codeEl) && codeEl.GetInt32() != 200)
+                return (0, $"API错误: {codeEl.GetInt32()}");
+
+            JsonElement rowsEl;
+            if (root.TryGetProperty("data", out var dataEl) &&
+                dataEl.ValueKind == JsonValueKind.Object &&
+                dataEl.TryGetProperty("rows", out rowsEl) &&
+                rowsEl.ValueKind == JsonValueKind.Array)
+            {
+                // wrapped
+            }
+            else if (!root.TryGetProperty("rows", out rowsEl) || rowsEl.ValueKind != JsonValueKind.Array)
+            {
+                return (0, string.Empty);
+            }
+
+            if (rowsEl.GetArrayLength() == 0)
+                return (0, string.Empty);
+
+            // Find matching record or take first
+            foreach (var item in rowsEl.EnumerateArray())
+            {
+                if (item.TryGetProperty("reciveErbanNo", out var idEl) &&
+                    idEl.GetString() == anchorId &&
+                    item.TryGetProperty("totalGoldNum", out var goldEl))
+                {
+                    return (goldEl.GetInt64(), string.Empty);
+                }
+            }
+
+            var first = rowsEl[0];
+            if (first.TryGetProperty("totalGoldNum", out var goldEl3))
+                return (goldEl3.GetInt64(), string.Empty);
+
+            return (0, string.Empty);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"GetAnchorSerial异常({anchorId}): {ex}");
+            return (0, $"异常: {ex.Message}");
+        }
+    }
+
+    public async Task<(string idCardNum, string error)> GetUserIdCardAsync(
+        string userId, string token)
+    {
+        try
+        {
+            var encodedId = Uri.EscapeDataString(userId);
+            var url = $"{BaseUrl}/admin/userCheckAdmin/getlist.action?type=1&erbanNoList={encodedId}";
+
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("Authorization", token);
+
+            var response = await _httpClient.SendAsync(request);
+            var text = await response.Content.ReadAsStringAsync();
+            Debug.WriteLine($"IdCard {userId}: {text}");
+
+            using var doc = JsonDocument.Parse(text);
+            var root = doc.RootElement;
+
+            if (!root.TryGetProperty("code", out var codeEl) || codeEl.GetInt32() != 200)
+                return (string.Empty, "ID错误");
+
+            if (!root.TryGetProperty("data", out var dataEl) ||
+                dataEl.ValueKind != JsonValueKind.Array ||
+                dataEl.GetArrayLength() == 0)
+                return (string.Empty, "无实名信息");
+
+            var first = dataEl[0];
+            string idCard = string.Empty;
+
+            // idCardNum may be directly on the item or inside a nested object
+            if (first.TryGetProperty("idCardNum", out var cardEl))
+                idCard = cardEl.GetString() ?? string.Empty;
+            else if (first.TryGetProperty("users", out var usersEl) &&
+                     usersEl.TryGetProperty("idCardNum", out var cardEl2))
+                idCard = cardEl2.GetString() ?? string.Empty;
+
+            if (string.IsNullOrEmpty(idCard))
+                return (string.Empty, "无实名信息");
+
+            return (MaskIdCard(idCard), string.Empty);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"GetUserIdCard异常({userId}): {ex}");
+            return (string.Empty, $"异常: {ex.Message}");
+        }
+    }
+
+    /// <summary>身份证号脱敏：保留前6位和后4位，中间位以 '*' 掩码。</summary>
+    private static string MaskIdCard(string idCard)
+    {
+        if (idCard.Length <= 10)
+            return new string('*', idCard.Length);
+        return idCard[..6] + new string('*', idCard.Length - 10) + idCard[^4..];
     }
 }
