@@ -7,11 +7,14 @@
         MaxWidth="480" MaxHeight="520"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        WindowStyle="ToolWindow"
-        Background="#F5F5F5"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
         FontFamily="Microsoft YaHei">
 
-    <Window.Resources>
+    <Border Background="#F5F5F5" CornerRadius="8" BorderBrush="#DDD" BorderThickness="1"
+            MouseLeftButtonDown="Border_MouseLeftButtonDown">
+    <Border.Resources>
         <Style x:Key="TextInlineButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
@@ -101,7 +104,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-    </Window.Resources>
+    </Border.Resources>
 
     <Grid Margin="30" Opacity="0">
         <Grid.Triggers> 
@@ -241,4 +244,5 @@
             <Button Content="取消" IsCancel="True" Cursor="Hand" Style="{StaticResource SecondaryButtonStyle}" Click="CancelButton_Click" />
         </StackPanel>
     </Grid>
+    </Border>
 </Window>
