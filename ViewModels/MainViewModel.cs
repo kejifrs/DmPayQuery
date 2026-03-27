@@ -31,16 +31,20 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
     [ObservableProperty]
     public partial int ActiveTabIndex { get; set; } = 0;
 
+    // 默认时间范围：上周一 00:00:00 ~ 上周日 23:59:59
+    private static readonly DateTime s_lastMonday = DateTime.Today.AddDays(-((int)(DateTime.Today.DayOfWeek + 6) % 7) - 7);
+    private static readonly DateTime s_lastSunday = s_lastMonday.AddDays(6);
+
     /// <summary>模式4/5的自定义开始时间（格式：yyyy-MM-dd HH:mm:ss）</summary>
     [ObservableProperty]
-    public partial string CustomStartTime { get; set; } = DateTime.Today.ToString("yyyy-MM-dd 00:00:00");
+    public partial string CustomStartTime { get; set; } = s_lastMonday.ToString("yyyy-MM-dd 00:00:00");
 
     /// <summary>模式4/5的自定义截止时间（格式：yyyy-MM-dd HH:mm:ss）</summary>
     [ObservableProperty]
-    public partial string CustomEndTime { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+    public partial string CustomEndTime { get; set; } = s_lastSunday.ToString("yyyy-MM-dd") + " 23:59:59";
 
     [ObservableProperty]
-    public partial DateTime? CustomStartDate { get; set; } = DateTime.Today;
+    public partial DateTime? CustomStartDate { get; set; } = s_lastMonday;
 
     [ObservableProperty]
     public partial int CustomStartHour { get; set; } = 0;
@@ -52,16 +56,16 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
     public partial int CustomStartSecond { get; set; } = 0;
 
     [ObservableProperty]
-    public partial DateTime? CustomEndDate { get; set; } = DateTime.Today;
+    public partial DateTime? CustomEndDate { get; set; } = s_lastSunday;
 
     [ObservableProperty]
-    public partial int CustomEndHour { get; set; } = DateTime.Now.Hour;
+    public partial int CustomEndHour { get; set; } = 23;
 
     [ObservableProperty]
-    public partial int CustomEndMinute { get; set; } = DateTime.Now.Minute;
+    public partial int CustomEndMinute { get; set; } = 59;
 
     [ObservableProperty]
-    public partial int CustomEndSecond { get; set; } = DateTime.Now.Second;
+    public partial int CustomEndSecond { get; set; } = 59;
 
     public IReadOnlyList<int> HourOptions { get; } = [
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
