@@ -100,7 +100,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
     private DataTable? _currentDataTable;
 
     // 用于保护并发写入 DataTable 行的锁对象
-    private readonly object _rowWriteLock = new();
+    private readonly System.Threading.Lock _rowWriteLock = new();
 
     partial void OnQueryModeChanged(QueryMode value)
     {
@@ -704,10 +704,10 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
         if (_currentDataTable == null)
             return new DataTable();
 
-        var columns = QueryMode switch
+        string[]? columns = QueryMode switch
         {
-            QueryMode.RoomSerialAndCreateTime => new[] { "厅ID", "厅流水", "开厅时间", "查询开始时间", "查询截止时间" },
-            QueryMode.AnchorSerialAndIdCard => new[] { "主播ID", "主播流水", "身份证号", "查询开始时间", "查询截止时间" },
+            QueryMode.RoomSerialAndCreateTime => ["厅ID", "厅流水", "开厅时间", "查询开始时间", "查询截止时间"],
+            QueryMode.AnchorSerialAndIdCard => ["主播ID", "主播流水", "身份证号", "查询开始时间", "查询截止时间"],
             _ => null
         };
 
