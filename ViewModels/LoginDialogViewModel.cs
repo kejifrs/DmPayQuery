@@ -8,6 +8,8 @@ namespace DmPayQuery.ViewModels;
 
 public partial class LoginDialogViewModel(IApiService apiService) : ObservableObject
 {
+    private CancellationTokenSource? _countdownCts;
+
     [ObservableProperty]
     public partial string Account { get; set; } = string.Empty;
 
@@ -37,6 +39,9 @@ public partial class LoginDialogViewModel(IApiService apiService) : ObservableOb
 
     public string Token { get; private set; } = string.Empty;
 
+    /// <summary>对话框关闭时调用，取消倒计时</summary>
+    public void CancelCountdown() => _countdownCts?.Cancel();
+
     [RelayCommand]
     private async Task GetCodeAsync()
     {
@@ -56,18 +61,29 @@ public partial class LoginDialogViewModel(IApiService apiService) : ObservableOb
 
         MessageBox.Show(message, "成功", MessageBoxButton.OK, MessageBoxImage.Information);
 
-        // 开始倒计时 - 使用 Dispatcher 更新 UI
+        // 开始倒计时
         CanGetCode = false;
+        _countdownCts = new CancellationTokenSource();
+        var ct = _countdownCts.Token;
 
-        for (int i = 60; i > 0; i--)
+        try
         {
-            // 在主线程更新 UI
-            await Application.Current.Dispatcher.InvokeAsync(() =>
+            for (int i = 60; i > 0; i--)
             {
-                CountdownText = $"{i}s后重发";
-            });
+                ct.ThrowIfCancellationRequested();
 
-            await Task.Delay(1000);
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    CountdownText = $"{i}s后重发";
+                });
+
+                await Task.Delay(1000, ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 对话框已关闭，静默退出
+            return;
         }
 
         // 倒计时结束，恢复按钮

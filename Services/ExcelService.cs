@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using System.IO;
+using System.Security;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 
@@ -18,7 +19,13 @@ public class ExcelService : IExcelService
         return await Task.Run(() =>
         {
             using var package = new ExcelPackage(new FileInfo(filePath));
+            if (package.Workbook.Worksheets.Count == 0)
+                return null;
+
             var worksheet = package.Workbook.Worksheets[0];
+            if (worksheet.Dimension == null)
+                return null;
+
             var dt = new DataTable();
 
             // 添加列（只添加有标题的非空列）
@@ -107,10 +114,47 @@ public class ExcelService : IExcelService
     {
         try
         {
-            await using var stream = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.Write);
+            if (string.IsNullOrWhiteSpace(filePath))
+                return false;
+
+            var directoryPath = Path.GetDirectoryName(filePath);
+            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+                return false;
+
+            if (File.Exists(filePath))
+            {
+                var fileInfo = new FileInfo(filePath);
+                if (fileInfo.IsReadOnly)
+                    return false;
+
+                await using var stream = File.Open(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+            else
+            {
+                var directoryInfo = new DirectoryInfo(directoryPath);
+                if ((directoryInfo.Attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
+                    return false;
+            }
+
             return true;
         }
         catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
         {
             return false;
         }

@@ -472,7 +472,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
             }
         }
 
-        bool failed = error == "ID错误" || error == "UID错误" || error == "API请求失败";
+        bool failed = bizType == "API请求失败" || !string.IsNullOrEmpty(error);
         lock (_rowWriteLock)
         {
             if (failed) stats.FailCount++;
