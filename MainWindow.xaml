@@ -487,10 +487,10 @@
                     </TabItem>
 
                      <!-- ─── Tab3：更多待加 ─── -->
-                     <TabItem Header="🧩 更多待加" Style="{StaticResource TabItemStyle}">
+                     <TabItem Header="🧩 更多" Style="{StaticResource TabItemStyle}">
                          <Grid Margin="0,14,0,0">
-                             <TextBlock Text="待更新..."
-                                        FontSize="14"
+                             <TextBlock Text="加点啥呢?"
+                                        FontSize="112"
                                         Foreground="#666"
                                         HorizontalAlignment="Left"
                                         VerticalAlignment="Top"/>
