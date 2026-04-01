@@ -56,11 +56,11 @@ public class ApiService : IApiService
     {
         try
         {
-            var content = new FormUrlEncodedContent(new[]
-            {
+            var content = new FormUrlEncodedContent(
+            [
                 new KeyValuePair<string, string>("account", account),
                 new KeyValuePair<string, string>("password", password)
-            });
+            ]);
 
             var response = await _httpClient.PostAsync($"{BaseUrl}/login/getCode", content);
             var text = await response.Content.ReadAsStringAsync();
@@ -83,12 +83,12 @@ public class ApiService : IApiService
     {
         try
         {
-            var content = new FormUrlEncodedContent(new[]
-            {
+            var content = new FormUrlEncodedContent(
+            [
                 new KeyValuePair<string, string>("account", account),
                 new KeyValuePair<string, string>("password", password),
                 new KeyValuePair<string, string>("code", code)
-            });
+            ]);
 
             var response = await _httpClient.PostAsync($"{BaseUrl}/login", content);
             var text = await response.Content.ReadAsStringAsync();
@@ -145,7 +145,7 @@ public class ApiService : IApiService
             }
 
             // 获取 rows 数组（直接顶层）
-            List<BillGroupItem> rows = new();
+            List<BillGroupItem> rows = [];
             if (root.TryGetProperty("rows", out var rowsElement) && rowsElement.ValueKind == JsonValueKind.Array)
             {
                 foreach (var row in rowsElement.EnumerateArray())
@@ -324,10 +324,9 @@ public class ApiService : IApiService
     {
         totalGold = 0;
 
-        JsonElement rowsEl;
         if (root.TryGetProperty("data", out var dataEl) &&
             dataEl.ValueKind == JsonValueKind.Object &&
-            dataEl.TryGetProperty("rows", out rowsEl) &&
+            dataEl.TryGetProperty("rows", out JsonElement rowsEl) &&
             rowsEl.ValueKind == JsonValueKind.Array)
         {
             // wrapped
@@ -513,7 +512,6 @@ public class ApiService : IApiService
 
     private static bool TryGetAnchorSerialRows(JsonElement root, out JsonElement rowsEl, out int total)
     {
-        rowsEl = default;
         total = 0;
 
         if (root.TryGetProperty("data", out var dataEl) && dataEl.ValueKind == JsonValueKind.Object)
