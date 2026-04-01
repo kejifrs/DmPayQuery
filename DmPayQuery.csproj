@@ -3,9 +3,12 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+	<!-- 启用单文件发布 -->
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+	<!-- 启用不安全代码以支持某些性能优化或特定功能 -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	<!-- 启用 WPF 支持以构建 Windows 桌面应用程序 -->
     <UseWPF>true</UseWPF>
     <ApplicationIcon>myicon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -22,9 +25,15 @@
     <InformationalVersion>3.2.1</InformationalVersion>
     <NeutralLanguage>zh-CN</NeutralLanguage>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>false</SelfContained>
+	<!-- 发布目录 -->
+	<PublishDir>C:\Users\kejif\Desktop\</PublishDir>
+	<!-- 发布时将所有文件打包成一个单独的可执行文件 -->
+	<PublishSingleFile>true</PublishSingleFile>
+	<!-- 发布时不包含 .NET 运行时，要求目标机器上已安装相应版本的 .NET 运行时 -->
+	<SelfContained>false</SelfContained>
+	<!-- 发布时包含本地库以支持自解压功能 -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+	<!-- 发布时启用 ReadyToRun 编译以提高启动性能 -->
     <DebugType>none</DebugType>
   </PropertyGroup>
 
