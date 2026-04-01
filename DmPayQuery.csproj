@@ -16,9 +16,11 @@
     <Description>哆咪一键查询工具</Description>
     <Authors>哆咪</Authors>
     <Copyright>Copyright © 2026 笑笑</Copyright>
-    <AssemblyVersion>3.2.1.0</AssemblyVersion>
-    <FileVersion>3.2.1.0</FileVersion>
+    <AssemblyVersion>3.2.1</AssemblyVersion>
+    <FileVersion>3.2.1</FileVersion>
     <Version>3.2.1</Version>
+    <InformationalVersion>3.2.1</InformationalVersion>
+    <NeutralLanguage>zh-CN</NeutralLanguage>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
