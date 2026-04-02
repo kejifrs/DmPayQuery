@@ -103,7 +103,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Thumb">
-                        <Border Background="#C8CFD5" CornerRadius="3" Margin="1"/>
+                        <Border Background="#E9EFF4" CornerRadius="3" Margin="0"/>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -683,7 +683,7 @@
                 <Border Grid.Row="1"
                         Background="#FAFAFA"
                         CornerRadius="6"
-                        BorderBrush="#E0E0E0"
+                        BorderBrush="Transparent"
                         BorderThickness="1">
                     <ScrollViewer x:Name="LogScrollViewer"
                                   VerticalScrollBarVisibility="Auto"
