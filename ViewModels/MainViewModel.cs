@@ -27,7 +27,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
     [ObservableProperty]
     public partial DeadlineMode DeadlineMode { get; set; } = DeadlineMode.Latest;
 
-    /// <summary>当前激活的Tab索引：0=消费查询，1=流水/开厅日期/实名查询</summary>
+    /// <summary>当前激活的Tab索引：0=消费查询，1=流水/开厅日期/实名查询，2=更多待加</summary>
     [ObservableProperty]
     public partial int ActiveTabIndex { get; set; } = 0;
 

@@ -7,7 +7,7 @@
         xmlns:models="clr-namespace:DmPayQuery.Models"
         xmlns:converters="clr-namespace:DmPayQuery.Converters"
         mc:Ignorable="d"
-        Title="哆咪一键查询工具 v3.2.1"
+        Title="{x:Static local:AppInfo.MainWindowTitle}"
         Icon="pack://application:,,,/DmPayQuery;component/myicon.ico"
         SizeToContent="WidthAndHeight"
         MaxWidth="1200" MaxHeight="900"
@@ -485,6 +485,17 @@
 
                         </StackPanel>
                     </TabItem>
+
+                     <!-- ─── Tab3：更多待加 ─── -->
+                     <TabItem Header="🧩 更多" Style="{StaticResource TabItemStyle}">
+                         <Grid Margin="0,14,0,0">
+                             <TextBlock Text="加点啥呢?"
+                                        FontSize="112"
+                                        Foreground="#666"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"/>
+                         </Grid>
+                     </TabItem>
 
                 </TabControl>
 

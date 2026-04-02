@@ -10,6 +10,7 @@ public class ApiService : IApiService
 {
     private readonly HttpClient _httpClient;
     private const string BaseUrl = "https://api.enlargemagic.com/api";
+    private const int AnchorSerialPageSize = 100;
 
     /// <summary>
     /// 用于区分秒级与毫秒级时间戳的阈值（约 2001-09-09 对应的秒数 1e12）。
@@ -55,11 +56,11 @@ public class ApiService : IApiService
     {
         try
         {
-            var content = new FormUrlEncodedContent(new[]
-            {
+            var content = new FormUrlEncodedContent(
+            [
                 new KeyValuePair<string, string>("account", account),
                 new KeyValuePair<string, string>("password", password)
-            });
+            ]);
 
             var response = await _httpClient.PostAsync($"{BaseUrl}/login/getCode", content);
             var text = await response.Content.ReadAsStringAsync();
@@ -82,12 +83,12 @@ public class ApiService : IApiService
     {
         try
         {
-            var content = new FormUrlEncodedContent(new[]
-            {
+            var content = new FormUrlEncodedContent(
+            [
                 new KeyValuePair<string, string>("account", account),
                 new KeyValuePair<string, string>("password", password),
                 new KeyValuePair<string, string>("code", code)
-            });
+            ]);
 
             var response = await _httpClient.PostAsync($"{BaseUrl}/login", content);
             var text = await response.Content.ReadAsStringAsync();
@@ -144,7 +145,7 @@ public class ApiService : IApiService
             }
 
             // 获取 rows 数组（直接顶层）
-            List<BillGroupItem> rows = new();
+            List<BillGroupItem> rows = [];
             if (root.TryGetProperty("rows", out var rowsElement) && rowsElement.ValueKind == JsonValueKind.Array)
             {
                 foreach (var row in rowsElement.EnumerateArray())
@@ -323,10 +324,9 @@ public class ApiService : IApiService
     {
         totalGold = 0;
 
-        JsonElement rowsEl;
         if (root.TryGetProperty("data", out var dataEl) &&
             dataEl.ValueKind == JsonValueKind.Object &&
-            dataEl.TryGetProperty("rows", out rowsEl) &&
+            dataEl.TryGetProperty("rows", out JsonElement rowsEl) &&
             rowsEl.ValueKind == JsonValueKind.Array)
         {
             // wrapped
@@ -458,65 +458,99 @@ public class ApiService : IApiService
             var encodedStart = Uri.EscapeDataString(startTime);
             var encodedEnd   = Uri.EscapeDataString(endTime);
 
-            var url = $"{BaseUrl}/admin/giftSend/list" +
-                      $"?pageNum=1&pageSize=10&roomErbanNo=&sendErbanNo=" +
-                      $"&reciveErbanNo={encodedId}&startTime={encodedStart}" +
-                      $"&endTime={encodedEnd}&groupType=1&guildName=";
+            long totalGoldNum = 0;
+            var pageNum = 1;
+            int? total = null;
 
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("Authorization", token);
-
-            var response = await _httpClient.SendAsync(request);
-            var text = await response.Content.ReadAsStringAsync();
-            Debug.WriteLine($"AnchorSerial {anchorId}: {text}");
-
-            if (response.StatusCode != System.Net.HttpStatusCode.OK)
-                return (0, $"HTTP错误: {(int)response.StatusCode}");
-
-            using var doc = JsonDocument.Parse(text);
-            var root = doc.RootElement;
-
-            if (root.TryGetProperty("code", out var codeEl) && codeEl.GetInt32() != 200)
-                return (0, $"API错误: {codeEl.GetInt32()}");
-
-            JsonElement rowsEl;
-            if (root.TryGetProperty("data", out var dataEl) &&
-                dataEl.ValueKind == JsonValueKind.Object &&
-                dataEl.TryGetProperty("rows", out rowsEl) &&
-                rowsEl.ValueKind == JsonValueKind.Array)
+            while (true)
             {
-                // wrapped
-            }
-            else if (!root.TryGetProperty("rows", out rowsEl) || rowsEl.ValueKind != JsonValueKind.Array)
-            {
-                return (0, string.Empty);
-            }
+                var url = $"{BaseUrl}/admin/giftSend/list" +
+                          $"?pageNum={pageNum}&pageSize={AnchorSerialPageSize}&roomErbanNo=&sendErbanNo=" +
+                          $"&reciveErbanNo={encodedId}&startTime={encodedStart}" +
+                          $"&endTime={encodedEnd}&groupType=1&guildName=";
 
-            if (rowsEl.GetArrayLength() == 0)
-                return (0, string.Empty);
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Add("Authorization", token);
 
-            // Find matching record or take first
-            foreach (var item in rowsEl.EnumerateArray())
-            {
-                if (item.TryGetProperty("reciveErbanNo", out var idEl) &&
-                    GetJsonElementString(idEl) == anchorId &&
-                    item.TryGetProperty("totalGoldNum", out var goldEl))
-                {
-                    return (GetJsonElementInt64(goldEl), string.Empty);
-                }
+                var response = await _httpClient.SendAsync(request);
+                var text = await response.Content.ReadAsStringAsync();
+                Debug.WriteLine($"AnchorSerial {anchorId} page {pageNum}: {text}");
+
+                if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                    return (0, $"HTTP错误: {(int)response.StatusCode}");
+
+                using var doc = JsonDocument.Parse(text);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("code", out var codeEl) && codeEl.GetInt32() != 200)
+                    return (0, $"API错误: {codeEl.GetInt32()}");
+
+                if (!TryGetAnchorSerialRows(root, out var rowsEl, out var pageTotal))
+                    return (0, string.Empty);
+
+                total ??= pageTotal;
+
+                if (total == 0 || rowsEl.GetArrayLength() == 0)
+                    return (0, string.Empty);
+
+                totalGoldNum += SumAnchorSerialTotalGoldNum(rowsEl, anchorId);
+
+                if (pageNum * AnchorSerialPageSize >= total || rowsEl.GetArrayLength() < AnchorSerialPageSize)
+                    break;
+
+                pageNum++;
             }
 
-            var first = rowsEl[0];
-            if (first.TryGetProperty("totalGoldNum", out var goldEl3))
-                return (GetJsonElementInt64(goldEl3), string.Empty);
-
-            return (0, string.Empty);
+            return (totalGoldNum, string.Empty);
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"GetAnchorSerial异常({anchorId}): {ex}");
             return (0, $"异常: {ex.Message}");
         }
+    }
+
+    private static bool TryGetAnchorSerialRows(JsonElement root, out JsonElement rowsEl, out int total)
+    {
+        total = 0;
+
+        if (root.TryGetProperty("data", out var dataEl) && dataEl.ValueKind == JsonValueKind.Object)
+        {
+            if (dataEl.TryGetProperty("total", out var wrappedTotalEl))
+                total = GetJsonElementInt32(wrappedTotalEl);
+
+            if (dataEl.TryGetProperty("rows", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array)
+                return true;
+        }
+
+        if (root.TryGetProperty("total", out var totalEl))
+            total = GetJsonElementInt32(totalEl);
+
+        return root.TryGetProperty("rows", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array;
+    }
+
+    private static long SumAnchorSerialTotalGoldNum(JsonElement rowsEl, string anchorId)
+    {
+        long matchedTotalGoldNum = 0;
+        long fallbackTotalGoldNum = 0;
+        var hasMatchedAnchor = false;
+
+        foreach (var item in rowsEl.EnumerateArray())
+        {
+            if (!item.TryGetProperty("totalGoldNum", out var goldEl))
+                continue;
+
+            var currentGoldNum = GetJsonElementInt64(goldEl);
+            fallbackTotalGoldNum += currentGoldNum;
+
+            if (item.TryGetProperty("reciveErbanNo", out var idEl) && GetJsonElementString(idEl) == anchorId)
+            {
+                matchedTotalGoldNum += currentGoldNum;
+                hasMatchedAnchor = true;
+            }
+        }
+
+        return hasMatchedAnchor ? matchedTotalGoldNum : fallbackTotalGoldNum;
     }
 
     private static string GetJsonElementString(JsonElement element)
@@ -548,6 +582,27 @@ public class ApiService : IApiService
         catch
         {
             return 0L;
+        }
+    }
+
+    private static int GetJsonElementInt32(JsonElement element)
+    {
+        try
+        {
+            return element.ValueKind switch
+            {
+                JsonValueKind.Number when element.TryGetInt32(out var value) => value,
+                JsonValueKind.Number when element.TryGetInt64(out var longValue) => (int)longValue,
+                JsonValueKind.String when int.TryParse(element.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var stringInt) => stringInt,
+                JsonValueKind.String when long.TryParse(element.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var stringLong) => (int)stringLong,
+                JsonValueKind.String when int.TryParse(element.GetString(), NumberStyles.Any, CultureInfo.CurrentCulture, out var currentInt) => currentInt,
+                JsonValueKind.String when long.TryParse(element.GetString(), NumberStyles.Any, CultureInfo.CurrentCulture, out var currentLong) => (int)currentLong,
+                _ => 0
+            };
+        }
+        catch
+        {
+            return 0;
         }
     }
 

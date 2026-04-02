@@ -131,9 +131,8 @@ public class ExcelService : IExcelService
             }
             else
             {
-                var directoryInfo = new DirectoryInfo(directoryPath);
-                if ((directoryInfo.Attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
-                    return false;
+                var tempFilePath = Path.Combine(directoryPath, $".{Guid.NewGuid():N}.tmp");
+                await using var stream = new FileStream(tempFilePath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose);
             }
 
             return true;
