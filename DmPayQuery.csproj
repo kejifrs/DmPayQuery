@@ -23,6 +23,8 @@
     <FileVersion>3.2.1</FileVersion>
     <Version>3.2.1</Version>
     <InformationalVersion>3.2.1</InformationalVersion>
+    <!-- 禁止 SDK 将 Git 提交哈希追加到产品版本号 -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <NeutralLanguage>zh-CN</NeutralLanguage>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
 	<!-- 发布目录 -->
@@ -41,9 +43,6 @@
     <!-- 将图标嵌入程序集，使其可作为 WPF 资源使用 -->
     <Resource Include="myicon.ico" />
     <None Include=".github\copilot-instructions.md" />
-    <None Include="version.rc">
-      <SubType>Code</SubType>
-    </None>
   </ItemGroup>
 
   <!-- NuGet 包引用 -->
