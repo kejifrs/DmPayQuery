@@ -14,6 +14,7 @@ namespace DmPayQuery.ViewModels;
 public partial class MainViewModel(IApiService apiService, ICacheService cacheService, IExcelService excelService) : ObservableObject
 {
     private const int LoginCacheValidSeconds = 7200;
+    private const string DashboardUrl = "https://www.baidu.com";
 
     [ObservableProperty]
     public partial string FilePath { get; set; } = string.Empty;
@@ -315,6 +316,23 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
     {
         Logs.Clear();
         AddLog("🗑️  日志已清空", "Cyan");
+    }
+
+    [RelayCommand]
+    private void OpenDashboard()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(DashboardUrl)
+            {
+                UseShellExecute = true
+            });
+            AddLog("📊 已打开数据看板", "Blue");
+        }
+        catch (Exception ex)
+        {
+            AddLog($"❌ 打开数据看板失败：{ex.Message}", "Red");
+        }
     }
 
     private async Task<string?> LoginWithCacheAsync()
