@@ -31,13 +31,13 @@
         <Style x:Key="TabItemStyle" TargetType="TabItem">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Padding" Value="16,9"/>
-            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
                         <Border x:Name="TabBorder"
-                                Margin="0,0,8,0"
+                                Margin="0,0,3,0"
                                 Padding="{TemplateBinding Padding}"
                                 CornerRadius="10,10,0,0"
                                 BorderThickness="1"
@@ -579,7 +579,7 @@
                             Foreground="White"
                             FontSize="14" FontWeight="Normal"
                             BorderThickness="0"
-                            Margin="0,0,50,0"
+                            Margin="0,0,20,0"
                             Cursor="Hand">
                         <Button.Style>
                             <Style TargetType="Button">
@@ -609,6 +609,46 @@
 
                     <Button Content="🗑️ 清空日志"
                             Command="{Binding ClearLogsCommand}"
+                            Width="120" Height="42"
+                            Background="#fafafa"
+                            BorderBrush="#1E88E5"
+                            BorderThickness="1"
+                            Foreground="#1E88E5"
+                            FontSize="14" FontWeight="Normal"
+                            Margin="0,0,20,0"
+                            Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="4">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#E3F2FD"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#BBDEFB"/>
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Opacity" Value="0.6"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Content="📊 数据看板"
+                            Command="{Binding OpenDashboardCommand}"
                             Width="120" Height="42"
                             Background="#fafafa"
                             BorderBrush="#1E88E5"
@@ -678,7 +718,7 @@
                 <TextBlock Text="📋 运行日志"
                            FontSize="14" FontWeight="Medium"
                            Foreground="#333"
-                           Margin="0,0,0,8"/>
+                           Margin="0,-8,0,8"/>
 
                 <Border Grid.Row="1"
                         Background="#FAFAFA"
