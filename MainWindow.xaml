@@ -678,7 +678,7 @@
                 <TextBlock Text="📋 运行日志"
                            FontSize="14" FontWeight="Medium"
                            Foreground="#333"
-                           Margin="0,0,0,8"/>
+                           Margin="0,-8,0,8"/>
 
                 <Border Grid.Row="1"
                         Background="#FAFAFA"
