@@ -653,4 +653,71 @@ public class ApiService : IApiService
             return (string.Empty, $"异常: {ex.Message}");
         }
     }
+
+    public async Task<(string idCardNum, byte[]? avatarBytes, string error)> GetUserIdCardAndAvatarAsync(
+        string userId, string token)
+    {
+        try
+        {
+            var encodedId = Uri.EscapeDataString(userId);
+            var url = $"{BaseUrl}/admin/userCheckAdmin/getlist.action?type=1&erbanNoList={encodedId}";
+
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("Authorization", token);
+
+            var response = await _httpClient.SendAsync(request);
+            var text = await response.Content.ReadAsStringAsync();
+            Debug.WriteLine($"IdCardAndAvatar {userId}: {text}");
+
+            using var doc = JsonDocument.Parse(text);
+            var root = doc.RootElement;
+
+            if (!root.TryGetProperty("code", out var codeEl) || codeEl.GetInt32() != 200)
+                return (string.Empty, null, "ID错误");
+
+            if (!root.TryGetProperty("data", out var dataEl) ||
+                dataEl.ValueKind != JsonValueKind.Array ||
+                dataEl.GetArrayLength() == 0)
+                return (string.Empty, null, "无实名信息");
+
+            var first = dataEl[0];
+            string idCard = string.Empty;
+            string avatarUrl = string.Empty;
+
+            if (first.TryGetProperty("users", out var usersEl))
+            {
+                if (usersEl.TryGetProperty("idCardNum", out var cardEl))
+                    idCard = cardEl.GetString() ?? string.Empty;
+                if (usersEl.TryGetProperty("avatar", out var avatarEl))
+                    avatarUrl = avatarEl.GetString() ?? string.Empty;
+            }
+
+            if (string.IsNullOrEmpty(idCard) &&
+                first.TryGetProperty("idCardNum", out var cardElDirect))
+                idCard = cardElDirect.GetString() ?? string.Empty;
+
+            if (string.IsNullOrEmpty(idCard))
+                return (string.Empty, null, "无实名信息");
+
+            byte[]? avatarBytes = null;
+            if (!string.IsNullOrEmpty(avatarUrl))
+            {
+                try
+                {
+                    avatarBytes = await _httpClient.GetByteArrayAsync(avatarUrl);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"头像下载失败({userId}): {ex.Message}");
+                }
+            }
+
+            return (idCard, avatarBytes, string.Empty);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"GetUserIdCardAndAvatar异常({userId}): {ex}");
+            return (string.Empty, null, $"异常: {ex.Message}");
+        }
+    }
 }

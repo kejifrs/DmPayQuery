@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.Security;
 using OfficeOpenXml;
@@ -81,6 +82,19 @@ public class ExcelService : IExcelService
             using var package = new ExcelPackage();
             var worksheet = package.Workbook.Worksheets.Add("查询结果");
 
+            // 识别头像列索引（0-based）
+            int avatarColIndex = -1;
+            for (int i = 0; i < dataTable.Columns.Count; i++)
+            {
+                if (dataTable.Columns[i].ColumnName == "主播头像")
+                {
+                    avatarColIndex = i;
+                    break;
+                }
+            }
+
+            const int avatarPixelSize = 50;
+
             // 写入表头
             for (int i = 0; i < dataTable.Columns.Count; i++)
             {
@@ -92,16 +106,54 @@ public class ExcelService : IExcelService
             // 写入数据
             for (int row = 0; row < dataTable.Rows.Count; row++)
             {
+                if (avatarColIndex >= 0)
+                    worksheet.Row(row + 2).Height = avatarPixelSize * 0.75; // Excel row height is in points (1pt ≈ 1.33px)
+
                 for (int col = 0; col < dataTable.Columns.Count; col++)
                 {
                     var cell = worksheet.Cells[row + 2, col + 1];
-                    cell.Value = dataTable.Rows[row][col];
+
+                    if (col == avatarColIndex)
+                    {
+                        var base64 = dataTable.Rows[row][col]?.ToString();
+                        if (!string.IsNullOrEmpty(base64))
+                        {
+                            try
+                            {
+                                var imgBytes = Convert.FromBase64String(base64);
+                                using var ms = new MemoryStream(imgBytes);
+                                var picture = worksheet.Drawings.AddPicture(
+                                    $"avatar_{row}", ms);
+                                picture.SetPosition(row + 1, 2, col, 2);
+                                picture.SetSize(avatarPixelSize - 4, avatarPixelSize - 4);
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"Excel图片嵌入失败(行{row}): {ex.Message}");
+                                cell.Value = "图片加载失败";
+                            }
+                        }
+                        else
+                        {
+                            cell.Value = "无头像";
+                        }
+                    }
+                    else
+                    {
+                        cell.Value = dataTable.Rows[row][col];
+                    }
+
                     cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    cell.Style.VerticalAlignment = ExcelVerticalAlignment.Center;
                 }
             }
 
             // 自动调整列宽
             worksheet.Cells.AutoFitColumns();
+
+            // 头像列设置固定宽度（9个字符宽，约可容纳50px头像图片）
+            if (avatarColIndex >= 0)
+                worksheet.Column(avatarColIndex + 1).Width = 9;
 
             // 冻结首行
             worksheet.View.FreezePanes(2, 1);
