@@ -557,12 +557,20 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
         }
         else
         {
-            // 模式5：查主播流水 + 身份证号（原始值直接显示）
-            var (totalGoldNum, serialErr) = await apiService.GetAnchorSerialAsync(id, _currentToken!, startTime, endTime);
-            var (idCard, cardErr)         = await apiService.GetUserIdCardAsync(id, _currentToken!);
+            // 模式5：查主播流水 + 身份证号 + 主播头像（并行请求）
+            var serialTask = apiService.GetAnchorSerialAsync(id, _currentToken!, startTime, endTime);
+            var cardTask   = apiService.GetUserIdCardAndAvatarAsync(id, _currentToken!);
+
+            await Task.WhenAll(serialTask, cardTask);
+
+            var (totalGoldNum, serialErr)        = serialTask.Result;
+            var (idCard, avatarBytes, cardErr)    = cardTask.Result;
 
             // totalGoldNum 除以100后取整展示
             var goldDisplay = string.IsNullOrEmpty(serialErr) ? (totalGoldNum / 100).ToString() : serialErr;
+
+            // 头像转 Base64 存入 DataTable，后续由 ExcelService 识别并嵌入图片
+            var avatarBase64 = avatarBytes != null ? Convert.ToBase64String(avatarBytes) : string.Empty;
 
             lock (_rowWriteLock)
             {
@@ -570,6 +578,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
                 SafeSetColumn(row, "查询截止时间", endTime);
                 SafeSetColumn(row, "主播流水",     goldDisplay);
                 SafeSetColumn(row, "身份证号",     string.IsNullOrEmpty(cardErr) ? idCard : cardErr);
+                SafeSetColumn(row, "主播头像",     avatarBase64);
                 bool ok = string.IsNullOrEmpty(serialErr) && string.IsNullOrEmpty(cardErr);
                 if (ok) stats.SuccessCount++;
                 else stats.FailCount++;
@@ -580,7 +589,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
             if (hasError)
                 AddLog($"⚠️ 第{rowIndex + 1}行：{id} 部分失败 流水:{serialErr} 身份证:{cardErr}", "Orange");
             else
-                AddLog($"✅ 第{rowIndex + 1}行：{id} 主播流水={totalGoldNum / 100} 身份证={idCard}", "Green");
+                AddLog($"✅ 第{rowIndex + 1}行：{id} 主播流水={totalGoldNum / 100} 身份证={idCard} 头像={(!string.IsNullOrEmpty(avatarBase64) ? "✔" : "✘")}", "Green");
         }
     }
 
@@ -599,7 +608,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
         }
         else if (QueryMode == QueryMode.AnchorSerialAndIdCard)
         {
-            cols = ["查询开始时间", "查询截止时间", "主播流水", "身份证号"];
+            cols = ["查询开始时间", "查询截止时间", "主播流水", "身份证号", "主播头像"];
         }
         else
         {
@@ -725,7 +734,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
         string[]? columns = QueryMode switch
         {
             QueryMode.RoomSerialAndCreateTime => ["厅ID", "厅流水", "开厅时间", "查询开始时间", "查询截止时间"],
-            QueryMode.AnchorSerialAndIdCard => ["主播ID", "主播流水", "身份证号", "查询开始时间", "查询截止时间"],
+            QueryMode.AnchorSerialAndIdCard => ["主播ID", "主播流水", "身份证号", "主播头像", "查询开始时间", "查询截止时间"],
             _ => null
         };
 

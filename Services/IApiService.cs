@@ -35,4 +35,8 @@ public interface IApiService
     /// <summary>模式5：查询用户实名身份证号（原始值直接返回）</summary>
     Task<(string idCardNum, string error)> GetUserIdCardAsync(
         string userId, string token);
+
+    /// <summary>模式5：同时查询身份证号和主播头像（合并接口减少请求）</summary>
+    Task<(string idCardNum, byte[]? avatarBytes, string error)> GetUserIdCardAndAvatarAsync(
+        string userId, string token);
 }
