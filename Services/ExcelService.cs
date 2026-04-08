@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.Security;
 using OfficeOpenXml;
@@ -106,7 +107,7 @@ public class ExcelService : IExcelService
             for (int row = 0; row < dataTable.Rows.Count; row++)
             {
                 if (avatarColIndex >= 0)
-                    worksheet.Row(row + 2).Height = avatarPixelSize * 0.75;
+                    worksheet.Row(row + 2).Height = avatarPixelSize * 0.75; // Excel row height is in points (1pt ≈ 1.33px)
 
                 for (int col = 0; col < dataTable.Columns.Count; col++)
                 {
@@ -126,8 +127,9 @@ public class ExcelService : IExcelService
                                 picture.SetPosition(row + 1, 2, col, 2);
                                 picture.SetSize(avatarPixelSize - 4, avatarPixelSize - 4);
                             }
-                            catch
+                            catch (Exception ex)
                             {
+                                Debug.WriteLine($"Excel图片嵌入失败(行{row}): {ex.Message}");
                                 cell.Value = "图片加载失败";
                             }
                         }
@@ -149,7 +151,7 @@ public class ExcelService : IExcelService
             // 自动调整列宽
             worksheet.Cells.AutoFitColumns();
 
-            // 头像列设置固定宽度（约9个字符宽）
+            // 头像列设置固定宽度（9个字符宽，约可容纳50px头像图片）
             if (avatarColIndex >= 0)
                 worksheet.Column(avatarColIndex + 1).Width = 9;
 

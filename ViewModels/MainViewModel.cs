@@ -563,8 +563,8 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
 
             await Task.WhenAll(serialTask, cardTask);
 
-            var (totalGoldNum, serialErr)        = serialTask.Result;
-            var (idCard, avatarBytes, cardErr)    = cardTask.Result;
+            var (totalGoldNum, serialErr)        = await serialTask;
+            var (idCard, avatarBytes, cardErr)    = await cardTask;
 
             // totalGoldNum 除以100后取整展示
             var goldDisplay = string.IsNullOrEmpty(serialErr) ? (totalGoldNum / 100).ToString() : serialErr;
