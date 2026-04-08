@@ -416,7 +416,7 @@
                                 <RadioButton Content="ID查厅流水&amp;开厅时间"
                                              IsChecked="{Binding QueryMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:QueryMode.RoomSerialAndCreateTime}}"
                                              Margin="0,0,22,0" VerticalContentAlignment="Center" FontSize="14"/>
-                                <RadioButton Content="ID查主播流水&amp;实名"
+                                <RadioButton Content="ID查主播流水&amp;实名&amp;头像"
                                              IsChecked="{Binding QueryMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:QueryMode.AnchorSerialAndIdCard}}"
                                              VerticalContentAlignment="Center" FontSize="14"/>
                             </StackPanel>
