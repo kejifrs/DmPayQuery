@@ -14,7 +14,7 @@ namespace DmPayQuery.ViewModels;
 public partial class MainViewModel(IApiService apiService, ICacheService cacheService, IExcelService excelService) : ObservableObject
 {
     private const int LoginCacheValidSeconds = 7200;
-    private const string DashboardUrl = "https://www.baidu.com";
+    private const string DashboardUrl = "http://192.168.8.7:8000";
 
     [ObservableProperty]
     public partial string FilePath { get; set; } = string.Empty;
