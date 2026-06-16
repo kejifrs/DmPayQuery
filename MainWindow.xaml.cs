@@ -57,6 +57,47 @@ public partial class MainWindow : Window
         _httpClient?.Dispose();
     }
 
+    private void AnchorOption_Checked(object sender, RoutedEventArgs e)
+    {
+        // 当任一主播选项被勾选时，把 QueryMode 切到 Anchor 模式
+        if (DataContext is MainViewModel vm)
+        {
+            vm.QueryMode = DmPayQuery.Models.QueryMode.AnchorSerialAndIdCard;
+        }
+    }
+
+    private void AnchorOption_Unchecked(object sender, RoutedEventArgs e)
+    {
+        // 当所有主播选项都未勾选时，不强制切换 QueryMode，仅保留当前选择
+        if (DataContext is MainViewModel vm)
+        {
+            if (!ChkAnchorSerial.IsChecked.GetValueOrDefault() && !ChkAnchorIdCard.IsChecked.GetValueOrDefault() && !ChkAnchorAvatar.IsChecked.GetValueOrDefault())
+            {
+                // 如果希望此时自动切换回 Room 模式，可在此设置；当前保留不切换
+            }
+            else
+            {
+                vm.QueryMode = DmPayQuery.Models.QueryMode.AnchorSerialAndIdCard;
+            }
+        }
+    }
+
+    private void RoomMode_Checked(object sender, RoutedEventArgs e)
+    {
+        // 切换到厅流水模式时，清除 Anchor 的单选语义（不自动修改复选框的勾选状态），确保互斥逻辑正确
+        if (DataContext is MainViewModel vm)
+        {
+            vm.QueryMode = DmPayQuery.Models.QueryMode.RoomSerialAndCreateTime;
+            // 取消所有主播复选框的勾选（直接更新 UI 控件）
+            ChkAnchorSerial.IsChecked = false;
+            ChkAnchorIdCard.IsChecked = false;
+            ChkAnchorAvatar.IsChecked = false;
+
+            // 在下一帧确保 Radio 的 IsChecked 被设置（防止首次点击被用于取消复选框而未触发单选状态）
+            Dispatcher.BeginInvoke(new Action(() => RdoRoom.IsChecked = true));
+        }
+    }
+
     protected override void OnClosing(CancelEventArgs e)
     {
         MainWindow_Unloaded(this, null);

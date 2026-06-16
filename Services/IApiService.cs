@@ -28,8 +28,8 @@ public interface IApiService
     Task<(string createDate, string error)> GetGuildCreateTimeAsync(
         string roomId, string token);
 
-    /// <summary>模式5：查询主播流水（totalGoldNum 原始值，展示时除以100取整）</summary>
-    Task<(long totalGoldNum, string error)> GetAnchorSerialAsync(
+    /// <summary>模式5：查询主播流水（totalGold 原始值，展示时除以100取整）</summary>
+    Task<(long totalGold, string error)> GetAnchorSerialAsync(
         string anchorId, string token, string startTime, string endTime);
 
     /// <summary>模式5：查询用户实名身份证号（原始值直接返回）</summary>
@@ -37,6 +37,6 @@ public interface IApiService
         string userId, string token);
 
     /// <summary>模式5：同时查询身份证号和主播头像（合并接口减少请求）</summary>
-    Task<(string idCardNum, byte[]? avatarBytes, string error)> GetUserIdCardAndAvatarAsync(
+    Task<(string idCard, byte[]? avatar, string error)> GetUserIdCardAndAvatarAsync(
         string userId, string token);
 }

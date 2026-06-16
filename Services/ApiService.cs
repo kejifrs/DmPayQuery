@@ -449,7 +449,7 @@ public class ApiService : IApiService
     // 模式5：主播流水（totalGoldNum）& 身份证号
     // ──────────────────────────────────────────────────────────────
 
-    public async Task<(long totalGoldNum, string error)> GetAnchorSerialAsync(
+    public async Task<(long totalGold, string error)> GetAnchorSerialAsync(
         string anchorId, string token, string startTime, string endTime)
     {
         try
@@ -458,7 +458,7 @@ public class ApiService : IApiService
             var encodedStart = Uri.EscapeDataString(startTime);
             var encodedEnd   = Uri.EscapeDataString(endTime);
 
-            long totalGoldNum = 0;
+            long totalGold = 0;
             var pageNum = 1;
             int? total = null;
 
@@ -493,7 +493,7 @@ public class ApiService : IApiService
                 if (total == 0 || rowsEl.GetArrayLength() == 0)
                     return (0, string.Empty);
 
-                totalGoldNum += SumAnchorSerialTotalGoldNum(rowsEl, anchorId);
+                totalGold += SumAnchorSerialTotalGoldNum(rowsEl, anchorId);
 
                 if (pageNum * AnchorSerialPageSize >= total || rowsEl.GetArrayLength() < AnchorSerialPageSize)
                     break;
@@ -501,7 +501,7 @@ public class ApiService : IApiService
                 pageNum++;
             }
 
-            return (totalGoldNum, string.Empty);
+            return (totalGold, string.Empty);
         }
         catch (Exception ex)
         {
@@ -654,7 +654,7 @@ public class ApiService : IApiService
         }
     }
 
-    public async Task<(string idCardNum, byte[]? avatarBytes, string error)> GetUserIdCardAndAvatarAsync(
+    public async Task<(string idCard, byte[]? avatar, string error)> GetUserIdCardAndAvatarAsync(
         string userId, string token)
     {
         try
@@ -699,12 +699,12 @@ public class ApiService : IApiService
             if (string.IsNullOrEmpty(idCard))
                 return (string.Empty, null, "无实名信息");
 
-            byte[]? avatarBytes = null;
+            byte[]? avatar = null;
             if (!string.IsNullOrEmpty(avatarUrl))
             {
                 try
                 {
-                    avatarBytes = await _httpClient.GetByteArrayAsync(avatarUrl);
+                    avatar = await _httpClient.GetByteArrayAsync(avatarUrl);
                 }
                 catch (Exception ex)
                 {
@@ -712,7 +712,7 @@ public class ApiService : IApiService
                 }
             }
 
-            return (idCard, avatarBytes, string.Empty);
+            return (idCard, avatar, string.Empty);
         }
         catch (Exception ex)
         {
