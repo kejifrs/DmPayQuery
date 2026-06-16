@@ -39,4 +39,7 @@ public interface IApiService
     /// <summary>模式5：同时查询身份证号和主播头像（合并接口减少请求）</summary>
     Task<(string idCard, byte[]? avatar, string error)> GetUserIdCardAndAvatarAsync(
         string userId, string token);
+
+    /// <summary>在运行时设置主播流水分页大小（可用于性能调优）</summary>
+    void SetAnchorSerialPageSize(int size);
 }

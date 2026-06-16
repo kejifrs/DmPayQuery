@@ -57,6 +57,36 @@ public partial class MainWindow : Window
         _httpClient?.Dispose();
     }
 
+    private void RdoProfileDefault_Checked(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+        {
+            vm.ProgressUpdateBatchSize = 10;
+            vm.AnchorSerialPageSize = 100;
+            vm.AdvancedConcurrency = 5;
+        }
+    }
+
+    private void RdoProfileMedium_Checked(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+        {
+            vm.ProgressUpdateBatchSize = 5;
+            vm.AnchorSerialPageSize = 500;
+            vm.AdvancedConcurrency = 8;
+        }
+    }
+
+    private void RdoProfileHigh_Checked(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+        {
+            vm.ProgressUpdateBatchSize = 2;
+            vm.AnchorSerialPageSize = 1000;
+            vm.AdvancedConcurrency = 12;
+        }
+    }
+
     private void AnchorOption_Checked(object sender, RoutedEventArgs e)
     {
         // 当任一主播选项被勾选时，把 QueryMode 切到 Anchor 模式

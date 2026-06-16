@@ -119,11 +119,25 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
     [ObservableProperty]
     public partial bool ProgressVisible { get; set; }
 
+    // 每多少行更新一次进度（默认10）
+    [ObservableProperty]
+    public partial int ProgressUpdateBatchSize { get; set; } = 10;
+
+    // 高级设置：高级模式并发数（默认5）
+    [ObservableProperty]
+    public partial int AdvancedConcurrency { get; set; } = 5;
+
+    // 可配置的主播流水分页大小（与 ApiService 配合使用）
+    [ObservableProperty]
+    public partial int AnchorSerialPageSize { get; set; } = 100;
+
     private string? _currentToken;
     private DataTable? _currentDataTable;
 
     // 用于保护并发写入 DataTable 行的锁对象
     private readonly System.Threading.Lock _rowWriteLock = new();
+    // 已处理计数（用于批量更新进度）
+    private int _processedCount;
 
     partial void OnQueryModeChanged(QueryMode value)
     {
@@ -266,9 +280,15 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
             int concurrency = QueryMode switch
             {
                 QueryMode.UidRechargeOrGift => 20,
-                QueryMode.RoomSerialAndCreateTime or QueryMode.AnchorSerialAndIdCard => 5,
+                QueryMode.RoomSerialAndCreateTime or QueryMode.AnchorSerialAndIdCard => AdvancedConcurrency,
                 _ => 6
             };
+
+            // 将设置同步到 ApiService（仅在高级模式对主播流水查询时生效）
+            if (QueryMode == QueryMode.AnchorSerialAndIdCard)
+            {
+                try { apiService.SetAnchorSerialPageSize(AnchorSerialPageSize); } catch { }
+            }
 
             var semaphore = new SemaphoreSlim(concurrency);
             var tasks = new List<Task>();
@@ -453,11 +473,16 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
         }
         finally
         {
-            // 更新进度条
-            await Application.Current.Dispatcher.InvokeAsync(() =>
+            // 原子增加已处理计数并判断是否需要更新 UI（每 ProgressUpdateBatchSize 行更新一次）
+            var processed = System.Threading.Interlocked.Increment(ref _processedCount);
+
+            if (processed % ProgressUpdateBatchSize == 0 || processed >= _currentDataTable!.Rows.Count)
             {
-                ProgressValue = (double)stats.TotalCount / _currentDataTable!.Rows.Count * 100;
-            });
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    ProgressValue = (double)stats.TotalCount / _currentDataTable!.Rows.Count * 100;
+                });
+            }
         }
     }
 
