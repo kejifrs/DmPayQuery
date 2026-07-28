@@ -10,7 +10,10 @@ public class ApiService : IApiService
 {
     private readonly HttpClient _httpClient;
     private const string BaseUrl = "https://api.enlargemagic.com/api";
-    private const int AnchorSerialPageSize = 100;
+    private const int DefaultAnchorSerialPageSize = 100;
+
+    // 默认分页大小（如需在运行时配置，可扩展为通过构造函数或方法注入）
+    // 使用常量 DefaultAnchorSerialPageSize 直接引用
 
     /// <summary>
     /// 用于区分秒级与毫秒级时间戳的阈值（约 2001-09-09 对应的秒数 1e12）。
@@ -18,10 +21,17 @@ public class ApiService : IApiService
     /// </summary>
     private const long TimestampMillisecondThreshold = 1_000_000_000_000L;
 
+    private int _anchorPageSize = DefaultAnchorSerialPageSize;
+
     public ApiService(HttpClient httpClient)
     {
         _httpClient = httpClient;
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
+    }
+
+    public void SetAnchorSerialPageSize(int size)
+    {
+        if (size > 0) _anchorPageSize = size;
     }
 
     public async Task<bool> CheckTokenValidityAsync(string token)
@@ -465,7 +475,7 @@ public class ApiService : IApiService
             while (true)
             {
                 var url = $"{BaseUrl}/admin/giftSend/list" +
-                          $"?pageNum={pageNum}&pageSize={AnchorSerialPageSize}&roomErbanNo=&sendErbanNo=" +
+                          $"?pageNum={pageNum}&pageSize={_anchorPageSize}&roomErbanNo=&sendErbanNo=" +
                           $"&reciveErbanNo={encodedId}&startTime={encodedStart}" +
                           $"&endTime={encodedEnd}&groupType=1&guildName=";
 
@@ -495,7 +505,7 @@ public class ApiService : IApiService
 
                 totalGold += SumAnchorSerialTotalGoldNum(rowsEl, anchorId);
 
-                if (pageNum * AnchorSerialPageSize >= total || rowsEl.GetArrayLength() < AnchorSerialPageSize)
+                if (pageNum * _anchorPageSize >= total || rowsEl.GetArrayLength() < _anchorPageSize)
                     break;
 
                 pageNum++;
