@@ -381,7 +381,7 @@
                             </StackPanel>
 
                             <!-- 截止时间策略 -->
-                            <StackPanel Orientation="Horizontal" Margin="0,4">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,39">
                                 <TextBlock Text="🕜︎ 截止时间：" Width="90" VerticalAlignment="Center"
                                            Foreground="#555" FontSize="14"/>
                                 <RadioButton Content="最新"
@@ -497,28 +497,29 @@
                             <TextBlock Text="💡 提高性能档位可提升查询速度，但可能增加服务器限流或失败概率" FontSize="12" Foreground="#666" Margin="0,0,0,10"/>
 
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,6" VerticalAlignment="Center">
-                                <TextBlock Text="性能档位：" Width="90" VerticalAlignment="Center" Foreground="#555" FontSize="14"/>
+                                <TextBlock Text="⚡ 性能档位：" Width="90" VerticalAlignment="Center" Foreground="#555" FontSize="14"/>
                                 <RadioButton x:Name="RdoProfileDefault" Content="默认" IsChecked="True" Margin="0,0,10,0" Checked="RdoProfileDefault_Checked" VerticalContentAlignment="Center" FontSize="14"/>
                                 <RadioButton x:Name="RdoProfileMedium" Content="中等" Margin="0,0,10,0" Checked="RdoProfileMedium_Checked" VerticalContentAlignment="Center" FontSize="14"/>
                                 <RadioButton x:Name="RdoProfileHigh" Content="高（有风险）" Margin="0,0,10,0" Checked="RdoProfileHigh_Checked" VerticalContentAlignment="Center" FontSize="14"/>
                             </StackPanel>
 
-                            <!-- 简化并排显示：进度刷新、分页大小、并发数 -->
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="进度刷新：" Foreground="#555" FontSize="14"/>
-                                    <TextBlock Text="{Binding ProgressUpdateBatchSize}" FontSize="14" Margin="0,0,20,0"/>
+                            <!-- 将三项参数分行显示 -->
+                            <StackPanel Orientation="Vertical" Margin="0,8,0,8.5" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                <!-- 将三项参数换为分行显示 -->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,10">
+                                    <TextBlock Text="🤩 进度刷新：" Foreground="#555" FontSize="14" Width="90"/>
+                                    <TextBlock Text="{Binding ProgressUpdateBatchSize}" FontSize="14"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,10">
+                                    <TextBlock Text="📚 分页大小：" Foreground="#555" FontSize="14" Width="90"/>
+                                    <TextBlock Text="{Binding AnchorSerialPageSize}" FontSize="14"/>
                                 </StackPanel>
 
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="分页大小：" Foreground="#555" FontSize="14"/>
-                                    <TextBlock Text="{Binding AnchorSerialPageSize}" FontSize="14" Margin="0,0,20,0"/>
-                                </StackPanel>
-
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="并发数：" Foreground="#555" FontSize="14"/>
-                                    <TextBlock Text="{Binding AdvancedConcurrency}" FontSize="14" Margin="0,0,20,0"/>
-                                </StackPanel>
+                                    <TextBlock Text="⚙️ 高级并发：" Foreground="#555" FontSize="14" Width="90"/>
+                                    <TextBlock Text="{Binding AdvancedConcurrency}" FontSize="14"/>
+                                </StackPanel>   
                             </StackPanel>
                         </StackPanel>
                     </TabItem>
@@ -621,6 +622,42 @@
                                                 </Trigger>
                                                 <Trigger Property="IsPressed" Value="True">
                                                     <Setter TargetName="border" Property="Background" Value="#1565C0"/>
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Opacity" Value="0.6"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Content="⛔ 结束查询"
+                            Command="{Binding CancelQueryCommand}"
+                            IsEnabled="{Binding IsQuerying}"
+                            Width="110" Height="40"
+                            Background="#EF6C00"
+                            Foreground="White"
+                            FontSize="14" FontWeight="Normal"
+                            BorderThickness="0"
+                            Margin="0,10,20,0"
+                            Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#FF8A50"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#E65100"/>
                                                 </Trigger>
                                                 <Trigger Property="IsEnabled" Value="False">
                                                     <Setter Property="Opacity" Value="0.6"/>

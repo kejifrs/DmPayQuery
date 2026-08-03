@@ -19,10 +19,10 @@
     <Description>哆咪一键查询工具</Description>
     <Authors>哆咪</Authors>
     <Copyright>Copyright © 2026 笑笑</Copyright>
-    <AssemblyVersion>3.2.1</AssemblyVersion>
-    <FileVersion>3.2.1</FileVersion>
-    <Version>3.2.1</Version>
-    <InformationalVersion>3.2.1</InformationalVersion>
+    <AssemblyVersion>3.2.2</AssemblyVersion>
+    <FileVersion>3.2.2</FileVersion>
+    <Version>3.2.2</Version>
+    <InformationalVersion>3.2.2</InformationalVersion>
     <!-- 禁止 SDK 将 Git 提交哈希追加到产品版本号 -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <NeutralLanguage>zh-CN</NeutralLanguage>

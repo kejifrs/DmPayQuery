@@ -96,6 +96,23 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
         set => SetProperty(ref _queryAnchorSerial, value);
     }
 
+    [RelayCommand]
+    private void CancelQuery()
+    {
+        try
+        {
+            if (_cts != null && !_cts.IsCancellationRequested)
+            {
+                _cts.Cancel();
+                AddLog("⛔ 用户已结束查询任务", "Orange");
+            }
+        }
+        catch (Exception ex)
+        {
+            AddLog($"❌ 结束查询失败：{ex.Message}", "Red");
+        }
+    }
+
     private bool _queryAnchorIdCard = false;
     public bool QueryAnchorIdCard
     {
@@ -138,6 +155,8 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
     private readonly System.Threading.Lock _rowWriteLock = new();
     // 已处理计数（用于批量更新进度）
     private int _processedCount;
+    // 查询取消控制
+    private System.Threading.CancellationTokenSource? _cts;
 
     partial void OnQueryModeChanged(QueryMode value)
     {
@@ -222,6 +241,12 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
             return;
         }
 
+        // 初始化/重置取消令牌
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new System.Threading.CancellationTokenSource();
+        var token = _cts.Token;
+
         IsQuerying = true;
         ProgressVisible = true;
         ProgressValue = 0;
@@ -298,24 +323,39 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
                 var rowIndex = i;
                 tasks.Add(Task.Run(async () =>
                 {
-                    await semaphore.WaitAsync();
                     try
                     {
-                        await ProcessRowAsync(rowIndex, stats);
+                        await semaphore.WaitAsync(token);
+                        try
+                        {
+                            if (token.IsCancellationRequested) return;
+                            await ProcessRowAsync(rowIndex, stats, token);
+                        }
+                        finally
+                        {
+                            semaphore.Release();
+                        }
                     }
-                    finally
+                    catch (OperationCanceledException)
                     {
-                        semaphore.Release();
+                        // 任务被取消，忽略
                     }
                 }));
             }
 
             await Task.WhenAll(tasks);
 
+            // 如果在等待过程中发生了取消，则不生成结果
+            if (token.IsCancellationRequested)
+            {
+                AddLog("用户已结束查询任务", "Orange");
+                return;
+            }
+
             // 第5步：输出任务统计
             var duration = DateTime.Now - startTime;
             AddLog("\n================= 任务统计 =================", "Purple");
-            AddLog($"🧩 版本：v3.2.1", "Cyan");
+            AddLog($"🧩 版本：v3.2.2", "Cyan");
             AddLog($"🔍 模式：{GetModeName()}", "Cyan");
             if (IsConsumeMode)
                 AddLog($"📅 拍走时间：{(DateMode == DateMode.PreviousDay ? "拍走时间前1天" : "原始日期")}", "Cyan");
@@ -360,6 +400,8 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
         {
             IsQuerying = false;
             ProgressVisible = false;
+            try { _cts?.Dispose(); } catch { }
+            _cts = null;
         }
     }
 
@@ -438,7 +480,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
     // 行处理入口：安全获取行后分派到对应模式处理器
     // ──────────────────────────────────────────────────────────────
 
-    private async Task ProcessRowAsync(int rowIndex, QueryStats stats)
+    private async Task ProcessRowAsync(int rowIndex, QueryStats stats, System.Threading.CancellationToken token)
     {
         // 加锁安全获取行引用，防止索引越界
         DataRow? row = null;
@@ -456,10 +498,11 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
 
         try
         {
+            if (token.IsCancellationRequested) return;
             if (IsAdvancedMode)
-                await ProcessAdvancedRowAsync(row, rowIndex, stats);
+                await ProcessAdvancedRowAsync(row, rowIndex, stats, token);
             else
-                await ProcessConsumeRowAsync(row, rowIndex, stats);
+                await ProcessConsumeRowAsync(row, rowIndex, stats, token);
         }
         catch (Exception ex)
         {
@@ -490,7 +533,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
     // 消费模式（模式1/2/3）行处理
     // ──────────────────────────────────────────────────────────────
 
-    private async Task ProcessConsumeRowAsync(DataRow row, int rowIndex, QueryStats stats)
+    private async Task ProcessConsumeRowAsync(DataRow row, int rowIndex, QueryStats stats, System.Threading.CancellationToken token)
     {
         // 根据模式读取查询主键（消费ID 或 消费UID）
         var userValue = QueryMode == QueryMode.UidRechargeOrGift
@@ -508,6 +551,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
             return;
         }
 
+        if (token.IsCancellationRequested) return;
         AddLog($"🔍 第{rowIndex + 1}行：查询 {userValue}", "Cyan");
 
         // 读取拍走时间（同时兼容旧列名"拍走日期"）
@@ -530,7 +574,12 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
         // 加锁写入行数据，防止并发竞态
         lock (_rowWriteLock)
         {
-            SafeSetColumn(row, "金额",         amount.ToString());
+            // 保持历史显示风格：不展示多余的四位小数，常见显示为整数或最多两位小数
+            var amountStr = amount % 1 == 0
+                ? ((long)amount).ToString()
+                : amount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+            SafeSetColumn(row, "金额",         amountStr);
             SafeSetColumn(row, "业务类型",     bizType);
             SafeSetColumn(row, "查询开始时间", startDate);
             SafeSetColumn(row, "查询截止时间", endDate);
@@ -565,7 +614,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
     // 高级模式（模式4/5）行处理
     // ──────────────────────────────────────────────────────────────
 
-    private async Task ProcessAdvancedRowAsync(DataRow row, int rowIndex, QueryStats stats)
+    private async Task ProcessAdvancedRowAsync(DataRow row, int rowIndex, QueryStats stats, System.Threading.CancellationToken token)
     {
         var idColumnName = QueryMode == QueryMode.RoomSerialAndCreateTime ? "厅ID" : "主播ID";
         var id = SafeGetColumn(row, idColumnName);
@@ -580,6 +629,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
             return;
         }
 
+        if (token.IsCancellationRequested) return;
         var startTime = CustomStartTime;
         var endTime   = CustomEndTime;
 

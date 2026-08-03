@@ -4,3 +4,6 @@
 - 用户偏好更现代、简洁的WPF界面风格（Tab、时间控件、日志滚动条）。
 - 用户偏好一体化日期时间控件样式，不接受分段拼接式外观。
 - 用户偏好在 C# 代码中优先使用简化集合初始化，即集合表达式（如 `[]`、`[ ... ]`）。
+
+## 打包偏好
+- 发布为便携单文件（PublishSingleFile=true），框架依赖（--self-contained false），目标平台 win-x64，配置 Release，输出到用户桌面（%USERPROFILE%\Desktop\DmPayQuery_Portable）。

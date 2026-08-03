@@ -1,4 +1,5 @@
 ﻿using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Diagnostics;
 using System.Globalization;
@@ -9,7 +10,7 @@ namespace DmPayQuery.Services;
 public class ApiService : IApiService
 {
     private readonly HttpClient _httpClient;
-    private const string BaseUrl = "https://api.enlargemagic.com/api";
+    private const string BaseUrl = "https://zapi.shanmiaobanyin.com/api";
     private const int DefaultAnchorSerialPageSize = 100;
 
     // 默认分页大小（如需在运行时配置，可扩展为通过构造函数或方法注入）
@@ -27,6 +28,71 @@ public class ApiService : IApiService
     {
         _httpClient = httpClient;
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
+    }
+
+    // 发送 GET 请求并在必要时尝试新版路径（在 /api/admin/ 后插入 system/admin）
+    private async Task<(HttpResponseMessage? response, string text)> SendGetWithAlternateAsync(string url, string token)
+    {
+        try
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("Authorization", token);
+            var response = await _httpClient.SendAsync(request);
+            var text = await response.Content.ReadAsStringAsync();
+
+            // 如果成功且不是返回特殊的 404_NOT_FOUND 文本，则直接返回
+            if (response.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(text);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("code", out var codeEl) && codeEl.ValueKind == JsonValueKind.Number)
+                    {
+                        var code = codeEl.GetInt32();
+                        if (code == 500 && root.TryGetProperty("msg", out var msgEl) && GetJsonElementString(msgEl).Contains("404_NOT_FOUND"))
+                        {
+                            // fallthrough to alternate
+                        }
+                        else
+                        {
+                            return (response, text);
+                        }
+                    }
+                    else
+                    {
+                        return (response, text);
+                    }
+                }
+                catch
+                {
+                    return (response, text);
+                }
+            }
+
+            // 构造备用 URL（在 /api/admin/ 后插入 system/admin）
+            string alt = url.Replace("/api/admin/", "/api/admin/system/admin/");
+            if (alt == url)
+                return (response, text);
+
+            try
+            {
+                var req2 = new HttpRequestMessage(HttpMethod.Get, alt);
+                req2.Headers.Add("Authorization", token);
+                var resp2 = await _httpClient.SendAsync(req2);
+                var text2 = await resp2.Content.ReadAsStringAsync();
+                return (resp2, text2);
+            }
+            catch
+            {
+                return (response, text);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"SendGetWithAlternateAsync 异常: {ex}");
+            return (null, string.Empty);
+        }
     }
 
     public void SetAnchorSerialPageSize(int size)
@@ -66,21 +132,45 @@ public class ApiService : IApiService
     {
         try
         {
-            var content = new FormUrlEncodedContent(
-            [
-                new KeyValuePair<string, string>("account", account),
-                new KeyValuePair<string, string>("password", password)
-            ]);
+            // 优先使用 JSON body 的 POST（多数 modern API 接收 application/json）
+            var payload = new { account, password };
+            var jsonContent = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync($"{BaseUrl}/login/getCode", content);
+            var requestUrl = $"{BaseUrl}/admin/system/login/getCode?account={Uri.EscapeDataString(account)}&password={Uri.EscapeDataString(password)}";
+
+            var response = await _httpClient.PostAsync(requestUrl, jsonContent);
             var text = await response.Content.ReadAsStringAsync();
-            Debug.WriteLine($"验证码响应: {text}");
+            Debug.WriteLine($"验证码响应 (尝试 JSON): {text}");
 
-            var result = JsonSerializer.Deserialize<ApiResponse<object>>(text);
-            if (result?.Code == 200)
-                return (true, "验证码获取成功，请查看短信");
+            if (response.IsSuccessStatusCode)
+            {
+                var result = JsonSerializer.Deserialize<ApiResponse<object>>(text);
+                if (result?.Code == 200)
+                    return (true, "验证码获取成功，请查看短信");
+            }
 
-            return (false, $"获取验证码失败: {result?.Message}");
+            // 回退：尝试不带 body 的 POST（某些后端只关心 query string）
+            try
+            {
+                var emptyContent = new StringContent(string.Empty);
+                var fallbackResp = await _httpClient.PostAsync(requestUrl, emptyContent);
+                var fallbackText = await fallbackResp.Content.ReadAsStringAsync();
+                Debug.WriteLine($"验证码响应 (回退 POST): {fallbackText}");
+
+                if (fallbackResp.IsSuccessStatusCode)
+                {
+                    var result2 = JsonSerializer.Deserialize<ApiResponse<object>>(fallbackText);
+                    if (result2?.Code == 200)
+                    return (true, "验证码获取成功，请查看短信");
+                    return (false, $"获取验证码失败: {result2?.EffectiveMessage} / {fallbackText}");
+                }
+
+                return (false, $"获取验证码失败: HTTP {(int)fallbackResp.StatusCode} / {fallbackText}");
+            }
+            catch (Exception ex2)
+            {
+                return (false, $"获取验证码失败: {ex2.Message} / 响应: {text}");
+            }
         }
         catch (Exception ex)
         {
@@ -93,22 +183,19 @@ public class ApiService : IApiService
     {
         try
         {
-            var content = new FormUrlEncodedContent(
-            [
-                new KeyValuePair<string, string>("account", account),
-                new KeyValuePair<string, string>("password", password),
-                new KeyValuePair<string, string>("code", code)
-            ]);
+            // 使用与前端相同的字段名：username / password / smsCode
+            var payload = new { username = account, password = password, smsCode = code };
+            var jsonContent = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync($"{BaseUrl}/login", content);
+            var response = await _httpClient.PostAsync($"{BaseUrl}/admin/system/login", jsonContent);
             var text = await response.Content.ReadAsStringAsync();
             Debug.WriteLine($"登录响应: {text}");
 
-            var result = JsonSerializer.Deserialize<ApiResponse<string>>(text);
-            if (result?.Code == 200 && !string.IsNullOrEmpty(result.Data))
-                return (true, result.Data, "登录成功！授权已缓存");
+            var result = JsonSerializer.Deserialize<ApiResponse<LoginData>>(text);
+            if (response.IsSuccessStatusCode && result?.Code == 200 && result.Data != null && !string.IsNullOrEmpty(result.Data.AccessToken))
+                return (true, result.Data.AccessToken, "登录成功！授权已缓存");
 
-            return (false, string.Empty, "登录失败，请检查账号、密码和验证码是否正确");
+            return (false, string.Empty, $"登录失败: {(result != null ? result.EffectiveMessage : text)}");
         }
         catch (Exception ex)
         {
@@ -121,10 +208,23 @@ public class ApiService : IApiService
     {
         try
         {
-            var url = $"{BaseUrl}/admin/billRecordCheck/listGroup.action";
-            var queryParams = modeQueryUid
-                ? $"erbanNo=&uid={userValue}&currency=1&startDate={startDate}&endDate={endDate}"
-                : $"erbanNo={userValue}&uid=&currency=1&startDate={startDate}&endDate={endDate}";
+            // 新版 API 路径与参数（示例：/admin/system/admin/billRecordCheck/listGroup?userNumber=...&currency=0&startDate=...&endDate=...&uid=...&pageNumber=1）
+            var url = $"{BaseUrl}/admin/system/admin/billRecordCheck/listGroup";
+
+            var encodedStart = Uri.EscapeDataString(startDate);
+            var encodedEnd = Uri.EscapeDataString(endDate);
+            string queryParams;
+
+            if (modeQueryUid)
+            {
+                // 按 UID 查询：userNumber 为空，uid 填写
+                queryParams = $"userNumber=&currency=0&startDate={encodedStart}&endDate={encodedEnd}&uid={Uri.EscapeDataString(userValue)}&pageNumber=1";
+            }
+            else
+            {
+                // 按账号/ID 查询：userNumber 填写，uid 为空
+                queryParams = $"userNumber={Uri.EscapeDataString(userValue)}&currency=0&startDate={encodedStart}&endDate={encodedEnd}&uid=&pageNumber=1";
+            }
 
             var request = new HttpRequestMessage(HttpMethod.Get, $"{url}?{queryParams}");
             request.Headers.Add("Authorization", token);
@@ -132,62 +232,118 @@ public class ApiService : IApiService
             var response = await _httpClient.SendAsync(request);
             var text = await response.Content.ReadAsStringAsync();
 
-            Debug.WriteLine($"==================");
+            Debug.WriteLine("==================");
             Debug.WriteLine($"查询用户: {userValue}");
+            Debug.WriteLine($"请求 URL: {url}?{queryParams}");
             Debug.WriteLine($"原始响应: {text}");
-            Debug.WriteLine($"==================");
+            Debug.WriteLine("==================");
 
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
                 return (0, "API请求失败", $"HTTP错误: {(int)response.StatusCode}");
 
-            // 手动解析 JSON（兼容 text/json 和无 code 的情况）
             using var doc = JsonDocument.Parse(text);
             var root = doc.RootElement;
 
-            // 检查是否有错误 code（有些接口有，有些没有）
+            // 某些返回带 code 字段并在非200时说明出错
             if (root.TryGetProperty("code", out var codeElement))
             {
                 var code = codeElement.GetInt32();
-                if (code == 4000 || code != 200)
-                {
+                if (code != 200)
                     return (0, modeQueryUid ? "UID错误" : "ID错误", modeQueryUid ? "UID错误" : "ID错误");
-                }
             }
 
-            // 获取 rows 数组（直接顶层）
-            List<BillGroupItem> rows = [];
-            if (root.TryGetProperty("rows", out var rowsElement) && rowsElement.ValueKind == JsonValueKind.Array)
+            // 新版可能将数据放在 data.rows / rows / list 中，尝试兼容多种情况
+            JsonElement rowsEl = default;
+            bool found = false;
+            if (root.TryGetProperty("data", out var dataEl) && dataEl.ValueKind == JsonValueKind.Object)
             {
-                foreach (var row in rowsElement.EnumerateArray())
-                {
-                    var item = new BillGroupItem();
-                    if (row.TryGetProperty("objType", out var objTypeEl))
-                        item.ObjType = objTypeEl.GetInt32();
-                    if (row.TryGetProperty("totalActualAmount", out var amountEl))
-                        item.TotalActualAmount = amountEl.GetDecimal();
-
-                    rows.Add(item);
-                }
+                if (dataEl.TryGetProperty("rows", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array)
+                    found = true;
+                else if (dataEl.TryGetProperty("list", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array)
+                    found = true;
             }
 
-            Debug.WriteLine($"找到 {rows.Count} 条记录");
+            if (!found && root.TryGetProperty("rows", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array)
+                found = true;
+            if (!found && root.TryGetProperty("list", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array)
+                found = true;
+
+            // 支持 data 直接为数组的情况
+            if (!found && root.TryGetProperty("data", out var dataTop) && dataTop.ValueKind == JsonValueKind.Array)
+            {
+                rowsEl = dataTop;
+                found = true;
+            }
 
             decimal? rechargeAmount = null;
             decimal? giftAmount = null;
 
-            foreach (var row in rows)
+            // 我们对可能的多条记录进行累加（更稳健），同时兼容 objType 数字和 objTypeDesc 文本
+            if (found)
             {
-                Debug.WriteLine($"处理: objType={row.ObjType}, amount={row.TotalActualAmount}");
+                decimal rechargeSum = 0m;
+                decimal giftSum = 0m;
+                bool hasRecharge = false;
+                bool hasGift = false;
 
-                if (row.ObjType == 1)
-                    rechargeAmount = row.TotalActualAmount;
-                else if (row.ObjType == 5)
-                    giftAmount = Math.Abs(row.TotalActualAmount);
+                foreach (var r in rowsEl.EnumerateArray())
+                {
+                    decimal val = 0m;
+                    if (r.TryGetProperty("totalActualAmount", out var amountEl))
+                    {
+                        if (amountEl.ValueKind == JsonValueKind.Number)
+                            val = amountEl.GetDecimal();
+                        else
+                        {
+                            var s = GetJsonElementString(amountEl);
+                            decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out val);
+                        }
+                    }
+
+                    if (r.TryGetProperty("objType", out var objTypeEl) && objTypeEl.ValueKind == JsonValueKind.Number)
+                    {
+                        var ot = objTypeEl.GetInt32();
+                        if (ot == 1)
+                        {
+                            rechargeSum += val;
+                            hasRecharge = true;
+                        }
+                        else if (ot == 5)
+                        {
+                            giftSum += Math.Abs(val);
+                            hasGift = true;
+                        }
+                    }
+                    else if (r.TryGetProperty("objTypeDesc", out var descEl) && descEl.ValueKind == JsonValueKind.String)
+                    {
+                        var desc = GetJsonElementString(descEl);
+                        if (desc.Contains("充值"))
+                        {
+                            rechargeSum += val;
+                            hasRecharge = true;
+                        }
+                        else if (desc.Contains("礼") || desc.Contains("收礼") || desc.Contains("送礼"))
+                        {
+                            giftSum += Math.Abs(val);
+                            hasGift = true;
+                        }
+                    }
+                    else if (r.TryGetProperty("sourceType", out var sourceEl))
+                    {
+                        // 回退规则：部分接口用 sourceType 表示收礼等行为（样例中收礼 sourceType=6）
+                        var st = GetJsonElementInt32(sourceEl);
+                        if (st == 6)
+                        {
+                            giftSum += Math.Abs(val);
+                            hasGift = true;
+                        }
+                    }
+                }
+
+                if (hasRecharge) rechargeAmount = rechargeSum;
+                if (hasGift) giftAmount = giftSum;
             }
 
-            Debug.WriteLine($"充值金额: {rechargeAmount}, 送礼金额: {giftAmount}");
-
-            // 业务逻辑判断（和Python一致）
             if (modeOnlyGift)
                 return (giftAmount ?? 0, "送礼", string.Empty);
 
@@ -215,9 +371,12 @@ public class ApiService : IApiService
     {
         try
         {
-            var request = new HttpRequestMessage(HttpMethod.Get,
-                $"{BaseUrl}/admin/userCheckAdmin/getlist.action?type=1&erbanNoList={userId}");
+            // 新版接口使用 POST，路径 /admin/system/admin/userCheckAdmin/getlist，参数放在查询字符串
+            var url = $"{BaseUrl}/admin/system/admin/userCheckAdmin/getlist?type=1&erbanNoList={Uri.EscapeDataString(userId)}";
+            var request = new HttpRequestMessage(HttpMethod.Post, url);
             request.Headers.Add("Authorization", token);
+            // 发送空 JSON 对象并设置 Content-Type 为 application/json，避免 415 错误
+            request.Content = new StringContent("{}", Encoding.UTF8, "application/json");
 
             var response = await _httpClient.SendAsync(request);
             var text = await response.Content.ReadAsStringAsync();
@@ -230,41 +389,80 @@ public class ApiService : IApiService
             if (!root.TryGetProperty("code", out var codeElement) || codeElement.GetInt32() != 200)
                 return ("ID错误", "ID错误", "ID错误");
 
-            if (!root.TryGetProperty("data", out var dataElement) || dataElement.ValueKind != JsonValueKind.Array)
+            // data 可能是数组，数组内元素可能包含 users 或 account
+            if (!root.TryGetProperty("data", out var dataElement))
                 return ("ID错误", "ID错误", "ID错误");
 
-            if (dataElement.GetArrayLength() == 0)
-                return ("ID错误", "ID错误", "ID错误");
-
-            var first = dataElement[0];
-            if (!first.TryGetProperty("users", out var usersElement))
-                return ("ID错误", "ID错误", "ID错误");
-
-            // uid 可能是数字或字符串，兼容处理
-            string uid;
-            if (usersElement.TryGetProperty("uid", out var uidElement))
-            {
-                uid = uidElement.ValueKind == JsonValueKind.Number
-                    ? uidElement.GetInt64().ToString()
-                    : uidElement.GetString() ?? "ID错误";
-            }
+            JsonElement first;
+            if (dataElement.ValueKind == JsonValueKind.Array && dataElement.GetArrayLength() > 0)
+                first = dataElement[0];
+            else if (dataElement.ValueKind == JsonValueKind.Object)
+                first = dataElement;
             else
+                return ("ID错误", "ID错误", "ID错误");
+
+            // 优先从 users.uid 查找
+            string uid = "ID错误";
+            if (first.TryGetProperty("users", out var usersElement) && usersElement.ValueKind == JsonValueKind.Object)
             {
-                uid = "ID错误";
+                if (usersElement.TryGetProperty("uid", out var uidElement))
+                {
+                    uid = uidElement.ValueKind == JsonValueKind.Number
+                        ? uidElement.GetInt64().ToString()
+                        : uidElement.GetString() ?? "ID错误";
+                }
             }
 
-            // 注册时间
-            long timestamp = 0;
-            if (usersElement.TryGetProperty("agreementSignTime", out var timeElement))
+            // 回退：有些接口把 uid 放在顶层字段 uid 或 account.uid
+            if (uid == "ID错误")
             {
-                timestamp = timeElement.ValueKind == JsonValueKind.Number
-                    ? timeElement.GetInt64()
-                    : 0;
+                if (first.TryGetProperty("uid", out var topUidEl))
+                {
+                    uid = topUidEl.ValueKind == JsonValueKind.Number
+                        ? topUidEl.GetInt64().ToString()
+                        : topUidEl.GetString() ?? "ID错误";
+                }
+                else if (first.TryGetProperty("account", out var accountEl) && accountEl.ValueKind == JsonValueKind.Object && accountEl.TryGetProperty("uid", out var accUid))
+                {
+                    uid = accUid.ValueKind == JsonValueKind.Number
+                        ? accUid.GetInt64().ToString()
+                        : accUid.GetString() ?? "ID错误";
+                }
             }
 
-            var registerDate = timestamp > 0
-            ? DateTimeOffset.FromUnixTimeMilliseconds(timestamp).ToLocalTime().ToString("yyyy-MM-dd")
-            : "未知";
+            // 注册时间：优先 users.agreementSignTime（时间戳），其次 account.signTime（字符串）或 loginTime
+            string registerDate = "未知";
+            if (first.TryGetProperty("users", out usersElement) && usersElement.ValueKind == JsonValueKind.Object)
+            {
+                if (usersElement.TryGetProperty("agreementSignTime", out var timeElement) && timeElement.ValueKind == JsonValueKind.Number)
+                {
+                    var ts = timeElement.GetInt64();
+                    // 兼容秒/毫秒
+                    registerDate = ts > TimestampMillisecondThreshold
+                        ? DateTimeOffset.FromUnixTimeMilliseconds(ts).ToLocalTime().ToString("yyyy-MM-dd")
+                        : DateTimeOffset.FromUnixTimeSeconds(ts).ToLocalTime().ToString("yyyy-MM-dd");
+                }
+                // 回退：有些返回使用 createTime 字符串表示创建时间
+                else if (usersElement.TryGetProperty("createTime", out var createEl) && createEl.ValueKind == JsonValueKind.String)
+                {
+                    if (DateTime.TryParse(createEl.GetString(), out var dtc))
+                        registerDate = dtc.ToString("yyyy-MM-dd");
+                }
+            }
+
+            if (registerDate == "未知")
+            {
+                if (first.TryGetProperty("account", out var accountEl) && accountEl.ValueKind == JsonValueKind.Object && accountEl.TryGetProperty("signTime", out var signEl) && signEl.ValueKind == JsonValueKind.String)
+                {
+                    if (DateTime.TryParse(signEl.GetString(), out var dt))
+                        registerDate = dt.ToString("yyyy-MM-dd");
+                }
+                else if (first.TryGetProperty("loginTime", out var loginEl) && loginEl.ValueKind == JsonValueKind.String)
+                {
+                    if (DateTime.TryParse(loginEl.GetString(), out var dt2))
+                        registerDate = dt2.ToString("yyyy-MM-dd");
+                }
+            }
 
             return (uid, registerDate, string.Empty);
         }
@@ -289,17 +487,15 @@ public class ApiService : IApiService
             var normalizedEnd = NormalizeDateOnly(endTime);
             var encodedStart = Uri.EscapeDataString(normalizedStart);
             var encodedEnd   = Uri.EscapeDataString(normalizedEnd);
-
             // 与后台实测一致：erbanNos + startTime/endTime(yyyy-MM-dd)
-            var url = $"{BaseUrl}/admin/roomSerial/listByPage" +
+            var url = $"{BaseUrl}/admin/system/admin/roomSerial/listByPage" +
                       $"?pageNumber=1&pageSize=10&erbanNos={encodedId}" +
                       $"&startTime={encodedStart}&endTime={encodedEnd}&isPermit=1&level=0";
 
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("Authorization", token);
+            var (response, text) = await SendGetWithAlternateAsync(url, token);
+            if (response == null)
+                return (0, "请求失败");
 
-            var response = await _httpClient.SendAsync(request);
-            var text = await response.Content.ReadAsStringAsync();
             Debug.WriteLine($"RoomSerial {roomId} (fixed): {text}");
 
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
@@ -393,17 +589,15 @@ public class ApiService : IApiService
         try
         {
             var encodedId = Uri.EscapeDataString(roomId);
-            var url = $"{BaseUrl}/admin/guild/guild/list" +
+            var url = $"{BaseUrl}/admin/system/admin/guild/guild/list" +
                       $"?roomErbanNo={encodedId}&pageNumber=1&pageSize=10" +
                       "&startDate=&endDate=&creator=&name=&guildBizId=&leaderErbanNo=" +
                       "&erbanNo=&status=&isSettingMargin=&isSettingHighQuality=" +
                       "&type=&isCustomCommission=";
+            var (response, text) = await SendGetWithAlternateAsync(url, token);
+            if (response == null)
+                return (string.Empty, "请求失败");
 
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("Authorization", token);
-
-            var response = await _httpClient.SendAsync(request);
-            var text = await response.Content.ReadAsStringAsync();
             Debug.WriteLine($"GuildCreate {roomId}: {text}");
 
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
@@ -474,16 +668,15 @@ public class ApiService : IApiService
 
             while (true)
             {
-                var url = $"{BaseUrl}/admin/giftSend/list" +
+                var url = $"{BaseUrl}/admin/system/admin/giftSend/list" +
                           $"?pageNum={pageNum}&pageSize={_anchorPageSize}&roomErbanNo=&sendErbanNo=" +
                           $"&reciveErbanNo={encodedId}&startTime={encodedStart}" +
                           $"&endTime={encodedEnd}&groupType=1&guildName=";
 
-                var request = new HttpRequestMessage(HttpMethod.Get, url);
-                request.Headers.Add("Authorization", token);
+                var (response, text) = await SendGetWithAlternateAsync(url, token);
+                if (response == null)
+                    return (0, "请求失败");
 
-                var response = await _httpClient.SendAsync(request);
-                var text = await response.Content.ReadAsStringAsync();
                 Debug.WriteLine($"AnchorSerial {anchorId} page {pageNum}: {text}");
 
                 if (response.StatusCode != System.Net.HttpStatusCode.OK)
@@ -622,10 +815,11 @@ public class ApiService : IApiService
         try
         {
             var encodedId = Uri.EscapeDataString(userId);
-            var url = $"{BaseUrl}/admin/userCheckAdmin/getlist.action?type=1&erbanNoList={encodedId}";
+            var url = $"{BaseUrl}/admin/system/admin/userCheckAdmin/getlist?type=1&erbanNoList={encodedId}";
 
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            var request = new HttpRequestMessage(HttpMethod.Post, url);
             request.Headers.Add("Authorization", token);
+            request.Content = new StringContent("{}", Encoding.UTF8, "application/json");
 
             var response = await _httpClient.SendAsync(request);
             var text = await response.Content.ReadAsStringAsync();
@@ -637,19 +831,21 @@ public class ApiService : IApiService
             if (!root.TryGetProperty("code", out var codeEl) || codeEl.GetInt32() != 200)
                 return (string.Empty, "ID错误");
 
-            if (!root.TryGetProperty("data", out var dataEl) ||
-                dataEl.ValueKind != JsonValueKind.Array ||
-                dataEl.GetArrayLength() == 0)
+            if (!root.TryGetProperty("data", out var dataEl))
                 return (string.Empty, "无实名信息");
 
-            var first = dataEl[0];
-            string idCard = string.Empty;
+            JsonElement first;
+            if (dataEl.ValueKind == JsonValueKind.Array && dataEl.GetArrayLength() > 0)
+                first = dataEl[0];
+            else if (dataEl.ValueKind == JsonValueKind.Object)
+                first = dataEl;
+            else
+                return (string.Empty, "无实名信息");
 
-            // idCardNum may be directly on the item or inside a nested object
+            string idCard = string.Empty;
             if (first.TryGetProperty("idCardNum", out var cardEl))
                 idCard = cardEl.GetString() ?? string.Empty;
-            else if (first.TryGetProperty("users", out var usersEl) &&
-                     usersEl.TryGetProperty("idCardNum", out var cardEl2))
+            else if (first.TryGetProperty("users", out var usersEl) && usersEl.TryGetProperty("idCardNum", out var cardEl2))
                 idCard = cardEl2.GetString() ?? string.Empty;
 
             if (string.IsNullOrEmpty(idCard))
@@ -670,10 +866,11 @@ public class ApiService : IApiService
         try
         {
             var encodedId = Uri.EscapeDataString(userId);
-            var url = $"{BaseUrl}/admin/userCheckAdmin/getlist.action?type=1&erbanNoList={encodedId}";
+            var url = $"{BaseUrl}/admin/system/admin/userCheckAdmin/getlist?type=1&erbanNoList={encodedId}";
 
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            var request = new HttpRequestMessage(HttpMethod.Post, url);
             request.Headers.Add("Authorization", token);
+            request.Content = new StringContent("{}", Encoding.UTF8, "application/json");
 
             var response = await _httpClient.SendAsync(request);
             var text = await response.Content.ReadAsStringAsync();
@@ -685,12 +882,17 @@ public class ApiService : IApiService
             if (!root.TryGetProperty("code", out var codeEl) || codeEl.GetInt32() != 200)
                 return (string.Empty, null, "ID错误");
 
-            if (!root.TryGetProperty("data", out var dataEl) ||
-                dataEl.ValueKind != JsonValueKind.Array ||
-                dataEl.GetArrayLength() == 0)
+            if (!root.TryGetProperty("data", out var dataEl))
                 return (string.Empty, null, "无实名信息");
 
-            var first = dataEl[0];
+            JsonElement first;
+            if (dataEl.ValueKind == JsonValueKind.Array && dataEl.GetArrayLength() > 0)
+                first = dataEl[0];
+            else if (dataEl.ValueKind == JsonValueKind.Object)
+                first = dataEl;
+            else
+                return (string.Empty, null, "无实名信息");
+
             string idCard = string.Empty;
             string avatarUrl = string.Empty;
 
@@ -702,8 +904,7 @@ public class ApiService : IApiService
                     avatarUrl = avatarEl.GetString() ?? string.Empty;
             }
 
-            if (string.IsNullOrEmpty(idCard) &&
-                first.TryGetProperty("idCardNum", out var cardElDirect))
+            if (string.IsNullOrEmpty(idCard) && first.TryGetProperty("idCardNum", out var cardElDirect))
                 idCard = cardElDirect.GetString() ?? string.Empty;
 
             if (string.IsNullOrEmpty(idCard))

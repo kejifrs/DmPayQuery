@@ -7,8 +7,15 @@ public class ApiResponse<T>
     [JsonPropertyName("code")]
     public int Code { get; set; }
 
+    // Some APIs return 'message', others return 'msg'. 支持两种字段名并提供统一访问。
     [JsonPropertyName("message")]
     public string Message { get; set; } = string.Empty;
+
+    [JsonPropertyName("msg")]
+    public string Msg { get; set; } = string.Empty;
+
+    [JsonIgnore]
+    public string EffectiveMessage => !string.IsNullOrEmpty(Message) ? Message : Msg;
 
     [JsonPropertyName("data")]
     public T? Data { get; set; }
@@ -85,4 +92,13 @@ public class UserIdCardItem
 
     [JsonPropertyName("idCardNum")]
     public string IdCardNum { get; set; } = string.Empty;
+}
+
+public class LoginData
+{
+    [JsonPropertyName("access_token")]
+    public string AccessToken { get; set; } = string.Empty;
+
+    [JsonPropertyName("expires_in")]
+    public int ExpiresIn { get; set; }
 }
