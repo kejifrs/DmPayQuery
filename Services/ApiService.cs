@@ -482,18 +482,27 @@ public class ApiService : IApiService
     private static bool TryExtractRoomSerial(JsonElement root, string roomId, out long totalGold)
     {
         totalGold = 0;
+        JsonElement rowsEl = default;
+        bool found = false;
 
-        if (root.TryGetProperty("data", out var dataEl) &&
-            dataEl.ValueKind == JsonValueKind.Object &&
-            dataEl.TryGetProperty("rows", out JsonElement rowsEl) &&
-            rowsEl.ValueKind == JsonValueKind.Array)
+        if (root.TryGetProperty("data", out var dataEl) && dataEl.ValueKind == JsonValueKind.Object)
         {
-            // wrapped
+            if (dataEl.TryGetProperty("rows", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array)
+                found = true;
+            else if (dataEl.TryGetProperty("list", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array)
+                found = true;
         }
-        else if (!root.TryGetProperty("rows", out rowsEl) || rowsEl.ValueKind != JsonValueKind.Array)
+
+        if (!found)
         {
+            if (root.TryGetProperty("rows", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array)
+                found = true;
+            else if (root.TryGetProperty("list", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array)
+                found = true;
+        }
+
+        if (!found)
             return false;
-        }
 
         foreach (var item in rowsEl.EnumerateArray())
         {
@@ -547,7 +556,14 @@ public class ApiService : IApiService
                       "&startDate=&endDate=&creator=&name=&guildBizId=&leaderErbanNo=" +
                       "&erbanNo=&status=&isSettingMargin=&isSettingHighQuality=" +
                       "&type=&isCustomCommission=";
-            var (response, text) = await SendGetAsync(url, token);
+            // 使用 POST JSON body，包含常用查询字段（pageNum/pageSize/roomUserNumber/startDate/endDate）以匹配前端请求
+            var payload = new { pageNum = 1, pageSize = 10, startDate = (string?)null, endDate = (string?)null, roomUserNumber = roomId };
+            var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Add("Authorization", token);
+            request.Content = jsonContent;
+            var response = await _httpClient.SendAsync(request);
+            var text = await response.Content.ReadAsStringAsync();
             if (response == null)
                 return (string.Empty, "请求失败");
 
@@ -584,16 +600,36 @@ public class ApiService : IApiService
             if (!firstItem.TryGetProperty("createTime", out var ctEl))
                 return (string.Empty, string.Empty);
 
-            long ts = ctEl.ValueKind == JsonValueKind.Number ? ctEl.GetInt64() : 0;
-            if (ts <= 0)
+            // 支持数值时间戳（秒/毫秒）和字符串时间（"yyyy-MM-dd HH:mm:ss" 等）
+            if (ctEl.ValueKind == JsonValueKind.Number)
+            {
+                var ts = GetJsonElementInt64(ctEl);
+                if (ts <= 0)
+                    return (string.Empty, string.Empty);
+                var dtoNum = ts > TimestampMillisecondThreshold
+                    ? DateTimeOffset.FromUnixTimeMilliseconds(ts)
+                    : DateTimeOffset.FromUnixTimeSeconds(ts);
+                return (dtoNum.ToLocalTime().ToString("yyyy-MM-dd"), string.Empty);
+            }
+
+            if (ctEl.ValueKind == JsonValueKind.String)
+            {
+                var s = ctEl.GetString();
+                if (string.IsNullOrEmpty(s))
+                    return (string.Empty, string.Empty);
+                if (DateTime.TryParse(s, out var dt))
+                    return (dt.ToString("yyyy-MM-dd"), string.Empty);
+                if (long.TryParse(s, out var sval))
+                {
+                    var dtoStr = sval > TimestampMillisecondThreshold
+                        ? DateTimeOffset.FromUnixTimeMilliseconds(sval)
+                        : DateTimeOffset.FromUnixTimeSeconds(sval);
+                    return (dtoStr.ToLocalTime().ToString("yyyy-MM-dd"), string.Empty);
+                }
                 return (string.Empty, string.Empty);
+            }
 
-            // 自动识别秒级/毫秒级时间戳
-            var dto = ts > TimestampMillisecondThreshold
-                ? DateTimeOffset.FromUnixTimeMilliseconds(ts)
-                : DateTimeOffset.FromUnixTimeSeconds(ts);
-
-            return (dto.ToLocalTime().ToString("yyyy-MM-dd"), string.Empty);
+            return (string.Empty, string.Empty);
         }
         catch (Exception ex)
         {
