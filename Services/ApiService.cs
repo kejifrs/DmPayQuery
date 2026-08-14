@@ -30,8 +30,8 @@ public class ApiService : IApiService
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
     }
 
-    // 发送 GET 请求并在必要时尝试新版路径（在 /api/admin/ 后插入 system/admin）
-    private async Task<(HttpResponseMessage? response, string text)> SendGetWithAlternateAsync(string url, string token)
+    // 统一使用真实接口前缀，不再尝试备用地址
+    private async Task<(HttpResponseMessage? response, string text)> SendGetAsync(string url, string token)
     {
         try
         {
@@ -39,58 +39,11 @@ public class ApiService : IApiService
             request.Headers.Add("Authorization", token);
             var response = await _httpClient.SendAsync(request);
             var text = await response.Content.ReadAsStringAsync();
-
-            // 如果成功且不是返回特殊的 404_NOT_FOUND 文本，则直接返回
-            if (response.StatusCode == System.Net.HttpStatusCode.OK)
-            {
-                try
-                {
-                    using var doc = JsonDocument.Parse(text);
-                    var root = doc.RootElement;
-                    if (root.TryGetProperty("code", out var codeEl) && codeEl.ValueKind == JsonValueKind.Number)
-                    {
-                        var code = codeEl.GetInt32();
-                        if (code == 500 && root.TryGetProperty("msg", out var msgEl) && GetJsonElementString(msgEl).Contains("404_NOT_FOUND"))
-                        {
-                            // fallthrough to alternate
-                        }
-                        else
-                        {
-                            return (response, text);
-                        }
-                    }
-                    else
-                    {
-                        return (response, text);
-                    }
-                }
-                catch
-                {
-                    return (response, text);
-                }
-            }
-
-            // 构造备用 URL（在 /api/admin/ 后插入 system/admin）
-            string alt = url.Replace("/api/admin/", "/api/admin/system/admin/");
-            if (alt == url)
-                return (response, text);
-
-            try
-            {
-                var req2 = new HttpRequestMessage(HttpMethod.Get, alt);
-                req2.Headers.Add("Authorization", token);
-                var resp2 = await _httpClient.SendAsync(req2);
-                var text2 = await resp2.Content.ReadAsStringAsync();
-                return (resp2, text2);
-            }
-            catch
-            {
-                return (response, text);
-            }
+            return (response, text);
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"SendGetWithAlternateAsync 异常: {ex}");
+            Debug.WriteLine($"SendGetAsync 异常: {ex}");
             return (null, string.Empty);
         }
     }
@@ -492,7 +445,7 @@ public class ApiService : IApiService
                       $"?pageNumber=1&pageSize=10&erbanNos={encodedId}" +
                       $"&startTime={encodedStart}&endTime={encodedEnd}&isPermit=1&level=0";
 
-            var (response, text) = await SendGetWithAlternateAsync(url, token);
+            var (response, text) = await SendGetAsync(url, token);
             if (response == null)
                 return (0, "请求失败");
 
@@ -594,7 +547,7 @@ public class ApiService : IApiService
                       "&startDate=&endDate=&creator=&name=&guildBizId=&leaderErbanNo=" +
                       "&erbanNo=&status=&isSettingMargin=&isSettingHighQuality=" +
                       "&type=&isCustomCommission=";
-            var (response, text) = await SendGetWithAlternateAsync(url, token);
+            var (response, text) = await SendGetAsync(url, token);
             if (response == null)
                 return (string.Empty, "请求失败");
 
@@ -650,7 +603,7 @@ public class ApiService : IApiService
     }
 
     // ──────────────────────────────────────────────────────────────
-    // 模式5：主播流水（totalGoldNum）& 身份证号
+    // 模式5：ID查主播流水（totalGoldNum）& 身份证号
     // ──────────────────────────────────────────────────────────────
 
     public async Task<(long totalGold, string error)> GetAnchorSerialAsync(
@@ -673,7 +626,7 @@ public class ApiService : IApiService
                           $"&reciveErbanNo={encodedId}&startTime={encodedStart}" +
                           $"&endTime={encodedEnd}&groupType=1&guildName=";
 
-                var (response, text) = await SendGetWithAlternateAsync(url, token);
+                var (response, text) = await SendGetAsync(url, token);
                 if (response == null)
                     return (0, "请求失败");
 
