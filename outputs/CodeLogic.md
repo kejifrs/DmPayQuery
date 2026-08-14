@@ -32,7 +32,7 @@
 	  - 新版调用路径 `/admin/system/admin/userCheckAdmin/getlist`，使用 POST + application/json ("{}")，并兼容返回结构：data 可为数组或对象；uid 可位于 users.uid / account.uid / 顶层 uid；注册时间可来自 users.agreementSignTime（秒或毫秒）、users.createTime、account.signTime 或 loginTime
 	  - 下载头像使用 HttpClient.GetByteArrayAsync
 	- GetRoomSerialAsync / GetGuildCreateTimeAsync / GetAnchorSerialAsync：厅流水与开厅时间、主播流水（分页）
-	  - 为兼容接口迁移，新增 SendGetWithAlternateAsync：先请求原路径 `/api/admin/...`，若失败或返回 404_NOT_FOUND，则重试 `/api/admin/system/admin/...` 替代路径
+	  - 统一使用真实接口前缀 `https://zapi.shanmiaobanyin.com/api`，不再执行备用地址重试
 	  - AnchorSerial 支持分页并累加 totalGold 或 totalGoldNum
   - 辅助函数：GetJsonElementString / GetJsonElementInt64 / GetJsonElementInt32 等，适配字符串/数字的 JSON 字段
 
@@ -56,7 +56,7 @@
 ## 错误处理与兼容策略
 - 网络/解析异常不会终止整个批次：单行异常记录 FailCount 并写入日志
 - JSON 解析尽量鲁棒：兼容多种字段名与数据类型
-- 对于 API 路径迁移，使用备用路径机制自动重试
+- API 统一使用真实前缀，不再维护备用路径
 - 对 POST 请求，使用 application/json 空对象避免 415
 
 ## 可配置点与扩展
