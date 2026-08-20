@@ -498,8 +498,8 @@
 
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,6" VerticalAlignment="Center">
                                 <TextBlock Text="⚡ 性能档位：" Width="90" VerticalAlignment="Center" Foreground="#555" FontSize="14"/>
-                                <RadioButton x:Name="RdoProfileDefault" Content="默认" IsChecked="True" Margin="0,0,10,0" Checked="RdoProfileDefault_Checked" VerticalContentAlignment="Center" FontSize="14"/>
-                                <RadioButton x:Name="RdoProfileMedium" Content="中等" Margin="0,0,10,0" Checked="RdoProfileMedium_Checked" VerticalContentAlignment="Center" FontSize="14"/>
+                                <RadioButton x:Name="RdoProfileDefault" Content="默认" Margin="0,0,10,0" Checked="RdoProfileDefault_Checked" VerticalContentAlignment="Center" FontSize="14"/>
+                                <RadioButton x:Name="RdoProfileMedium" Content="中等" IsChecked="True" Margin="0,0,10,0" Checked="RdoProfileMedium_Checked" VerticalContentAlignment="Center" FontSize="14"/>
                                 <RadioButton x:Name="RdoProfileHigh" Content="高（有风险）" Margin="0,0,10,0" Checked="RdoProfileHigh_Checked" VerticalContentAlignment="Center" FontSize="14"/>
                             </StackPanel>
 
