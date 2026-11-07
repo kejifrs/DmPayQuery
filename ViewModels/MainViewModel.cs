@@ -355,14 +355,14 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
             // 第5步：输出任务统计
             var duration = DateTime.Now - startTime;
             AddLog("\n================= 任务统计 =================", "Purple");
-            AddLog($"🧩 版本：v3.2.2", "Cyan");
-            AddLog($"🔍 模式：{GetModeName()}", "Cyan");
+            AddLog($"🧩 当前版本：v3.2.3", "Cyan");
+            AddLog($"🔍 查询模式：{GetModeName()}", "Cyan");
             if (IsConsumeMode)
                 AddLog($"📅 拍走时间：{(DateMode == DateMode.PreviousDay ? "拍走时间前1天" : "原始日期")}", "Cyan");
-            AddLog($"📊 总条数：{stats.TotalCount}", "Cyan");
-            AddLog($"✅ 成功：{stats.SuccessCount}", "Green");
-            AddLog($"⚠️  失败：{stats.FailCount}", "Orange");
-            AddLog($"🕒 耗时：{duration.TotalSeconds:F2} 秒", "Cyan");
+            AddLog($"📊 总计数量：{stats.TotalCount}", "Cyan");
+            AddLog($"✅ 成功数量：{stats.SuccessCount}", "Green");
+            AddLog($"⚠️  失败数量：{stats.FailCount}", "Orange");
+            AddLog($"🕒 总计耗时：{duration.TotalSeconds:F2} 秒", "Cyan");
             AddLog("========================================", "Purple");
             AddLog("🎉 查询任务全部完成！", "Green");
 
