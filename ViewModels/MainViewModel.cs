@@ -361,7 +361,7 @@ public partial class MainViewModel(IApiService apiService, ICacheService cacheSe
                 AddLog($"📅 拍走时间：{(DateMode == DateMode.PreviousDay ? "拍走时间前1天" : "原始日期")}", "Cyan");
             AddLog($"📊 总计数量：{stats.TotalCount}", "Cyan");
             AddLog($"✅ 成功数量：{stats.SuccessCount}", "Green");
-            AddLog($"⚠️  失败数量：{stats.FailCount}", "Orange");
+            AddLog($"⚠️ 失败数量：{stats.FailCount}", "Orange");
             AddLog($"🕒 总计耗时：{duration.TotalSeconds:F2} 秒", "Cyan");
             AddLog("========================================", "Purple");
             AddLog("🎉 查询任务全部完成！", "Green");
