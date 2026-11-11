@@ -1,4 +1,5 @@
-﻿# 软件介绍
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&width=435&lines=Welcome+to+my+Github+Project+!%F0%9F%91%8B;This+is+the+software+introduction)](https://git.io/typing-svg)
+ # 软件介绍
 
 `DmPayQuery` 是一个基于 `.NET 10` 的 `WPF` 桌面工具，用于批量查询相关业务数据，并将结果导出为 Excel 文件。
 
